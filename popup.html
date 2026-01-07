@@ -3,20 +3,456 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="title">Gis Maps Parser</title>
-  <script src="popup.js" defer></script>
+  <title>2GIS Parser Pro</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 10px; width: 220px; }
-    button { padding: 10px; margin: 5px; cursor: pointer; width: 90%; }
-    #status { font-size: 12px; }
+    :root {
+      --primary: #00a651;
+      --primary-dark: #008c45;
+      --primary-light: #e8f5e9;
+      --danger: #e53935;
+      --danger-light: #ffebee;
+      --warning: #ff9800;
+      --text: #333;
+      --text-secondary: #666;
+      --bg: #ffffff;
+      --bg-secondary: #f5f5f5;
+      --border: #e0e0e0;
+      --shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      width: 320px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .header .version {
+      font-size: 11px;
+      opacity: 0.8;
+    }
+
+    /* Stats Section */
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 16px;
+      background: var(--bg-secondary);
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-card .number {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .stat-card .label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Progress Section */
+    .progress-section {
+      padding: 0 16px 16px;
+      background: var(--bg-secondary);
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-bar .fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      text-align: center;
+    }
+
+    /* Main Content */
+    .content {
+      padding: 16px;
+    }
+
+    /* Export Section */
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+
+    .export-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 8px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .btn-export {
+      background: var(--primary-light);
+      color: var(--primary-dark);
+    }
+
+    .btn-export:hover {
+      background: var(--primary);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+
+    .btn-export .icon {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    .btn-export .text {
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    /* Filter Section */
+    .filters {
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .filter-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .filter-row:last-child {
+      border-bottom: none;
+    }
+
+    .filter-row label {
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .filter-row input[type="number"] {
+      width: 60px;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .filter-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+    }
+
+    /* Action Buttons */
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .btn-action {
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      grid-column: 1 / -1;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: var(--bg-secondary);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .btn-danger {
+      background: var(--danger-light);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: var(--danger);
+      color: white;
+    }
+
+    /* Status Message */
+    .status {
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      text-align: center;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    .status.success {
+      display: block;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+    }
+
+    .status.error {
+      display: block;
+      background: var(--danger-light);
+      color: var(--danger);
+    }
+
+    .status.warning {
+      display: block;
+      background: #fff3e0;
+      color: var(--warning);
+    }
+
+    /* Footer */
+    .footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .footer-link {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .footer-link:hover {
+      color: var(--primary);
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: relative;
+    }
+
+    .tooltip::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--text);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .tooltip:hover::after {
+      opacity: 1;
+    }
+
+    /* Dark theme toggle */
+    .theme-toggle {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(255,255,255,0.2);
+      border: none;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    .theme-toggle:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    /* Loading state */
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 6px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Animation */
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .pulse {
+      animation: pulse 2s infinite;
+    }
   </style>
 </head>
 <body>
-  <h3 data-i18n="title">Gis Maps Parser</h3>
-  <button id="downloadBtn" data-i18n="downloadBtn">🗂 Скачать таблицу</button>
-  <button id="clearBtn" data-i18n="clearBtn">↩️ Сбросить</button>
-  <button id="supportBtn" data-i18n="supportBtn">💌 Поддержка 24/7</button>
-  <button id="instructionBtn" data-i18n="instructionBtn">📗 Инструкция</button>
-  <p id="status" style="color: red;"></p>
+  <div class="header" style="position: relative;">
+    <button class="theme-toggle" id="themeToggle" title="Переключить тему">🌙</button>
+    <h1>2GIS Parser Pro</h1>
+    <div class="version">v2.0.0</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="number" id="totalCount">0</div>
+      <div class="label">Компаний собрано</div>
+    </div>
+    <div class="stat-card">
+      <div class="number" id="withPhones">0</div>
+      <div class="label">С телефонами</div>
+    </div>
+  </div>
+
+  <div class="progress-section">
+    <div class="progress-bar">
+      <div class="fill" id="progressFill"></div>
+    </div>
+    <div class="progress-text" id="progressText">Ожидание данных...</div>
+  </div>
+
+  <div class="content">
+    <div id="status" class="status"></div>
+
+    <div class="section-title">Экспорт данных</div>
+    <div class="export-buttons">
+      <button class="btn btn-export tooltip" id="downloadXlsx" data-tooltip="Microsoft Excel">
+        <span class="icon">📊</span>
+        <span class="text">XLSX</span>
+      </button>
+      <button class="btn btn-export tooltip" id="downloadCsv" data-tooltip="CSV для импорта">
+        <span class="icon">📄</span>
+        <span class="text">CSV</span>
+      </button>
+      <button class="btn btn-export tooltip" id="downloadJson" data-tooltip="Для разработчиков">
+        <span class="icon">🔧</span>
+        <span class="text">JSON</span>
+      </button>
+    </div>
+
+    <div class="section-title">Фильтры</div>
+    <div class="filters">
+      <div class="filter-row">
+        <label for="filterRating">Мин. рейтинг</label>
+        <input type="number" id="filterRating" min="0" max="5" step="0.1" value="0" placeholder="0">
+      </div>
+      <div class="filter-row">
+        <label for="filterPhone">Только с телефоном</label>
+        <input type="checkbox" id="filterPhone">
+      </div>
+      <div class="filter-row">
+        <label for="filterEmail">Только с email</label>
+        <input type="checkbox" id="filterEmail">
+      </div>
+      <div class="filter-row">
+        <label for="filterSite">Только с сайтом</label>
+        <input type="checkbox" id="filterSite">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-action btn-secondary" id="previewBtn">👁 Превью</button>
+      <button class="btn btn-action btn-danger" id="clearBtn">🗑 Очистить</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    <a class="footer-link" id="instructionBtn">📖 Инструкция</a>
+    <a class="footer-link" id="supportBtn">💬 Поддержка</a>
+  </div>
+
+  <script src="popup.js"></script>
 </body>
 </html>
