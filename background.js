@@ -649,7 +649,7 @@ async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Мос
     'WhatsApp': { idx: headers.indexOf('WhatsApp'), text: 'WhatsApp' }
   };
 
-  // Преобразуем URL в формулы HYPERLINK
+  // Преобразуем URL в гиперссылки (используем свойство l для SheetJS)
   for (let row = 1; row <= range.e.r; row++) {
     for (const [colName, colData] of Object.entries(linkColumns)) {
       if (colData.idx === -1) continue;
@@ -658,12 +658,12 @@ async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Мос
       const cell = ws[cellAddress];
 
       if (cell && cell.v && typeof cell.v === 'string' && cell.v.startsWith('http')) {
-        // Создаём формулу HYPERLINK
-        const url = cell.v.replace(/"/g, '""'); // Экранируем кавычки
+        const url = cell.v;
+        // Используем нативную поддержку гиперссылок SheetJS
         ws[cellAddress] = {
           t: 's',
-          f: `HYPERLINK("${url}","${colData.text}")`,
-          v: colData.text
+          v: colData.text,
+          l: { Target: url }
         };
       }
     }
