@@ -342,6 +342,99 @@
       font-weight: 600;
     }
 
+    /* Auto-collect section */
+    .auto-collect-section {
+      margin-bottom: 12px;
+    }
+
+    .btn-auto-collect {
+      width: 100%;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-auto-collect:hover {
+      background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+    }
+
+    .btn-auto-collect:disabled {
+      background: #bdbdbd;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-auto-collect.collecting {
+      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+    }
+
+    .btn-auto-collect .icon {
+      font-size: 16px;
+    }
+
+    .auto-collect-status {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-top: 6px;
+      min-height: 16px;
+    }
+
+    .auto-collect-status.error {
+      color: var(--danger);
+    }
+
+    .auto-collect-status.success {
+      color: var(--primary);
+    }
+
+    .auto-collect-settings {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+      padding: 8px;
+      background: var(--bg-secondary);
+      border-radius: 6px;
+    }
+
+    .auto-collect-settings label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      flex: 1;
+    }
+
+    .auto-collect-settings input {
+      width: 55px;
+      padding: 4px 6px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 11px;
+      text-align: center;
+    }
+
     /* Telegram icon */
     .tg-icon {
       display: inline-block;
@@ -357,7 +450,7 @@
 <body>
   <div class="header">
     <h1>2GIS Parser Pro</h1>
-    <div class="version">v2.2.0</div>
+    <div class="version">v2.3.0</div>
   </div>
 
   <div class="stats">
@@ -401,6 +494,25 @@
         <option value="Пермь">Пермь</option>
         <option value="Волгоград">Волгоград</option>
       </select>
+    </div>
+
+    <div class="section-title">Сбор данных</div>
+    <div class="auto-collect-section">
+      <button class="btn btn-auto-collect" id="autoCollectBtn">
+        <span class="icon">🔄</span>
+        <span class="text">Собрать все страницы</span>
+      </button>
+      <div class="auto-collect-status" id="autoCollectStatus"></div>
+      <div class="auto-collect-settings">
+        <label>
+          <span>Задержка (сек):</span>
+          <input type="number" id="collectDelay" min="1" max="10" value="2" step="0.5">
+        </label>
+        <label>
+          <span>Макс. страниц:</span>
+          <input type="number" id="maxPages" min="1" max="500" value="100">
+        </label>
+      </div>
     </div>
 
     <div class="section-title">Экспорт данных</div>

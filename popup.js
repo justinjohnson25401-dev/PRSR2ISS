@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Popup Script v2.2
+// 2GIS Parser Pro - Popup Script v2.3
 
 class ParserPopup {
   constructor() {
@@ -11,6 +11,7 @@ class ParserPopup {
       onlyWithTelegram: false
     };
     this.selectedCity = 'Москва';
+    this.isCollecting = false;
     this.init();
   }
 
@@ -33,6 +34,9 @@ class ParserPopup {
       this.selectedCity = e.target.value;
       this.saveCity();
     });
+
+    // Auto-collect button
+    document.getElementById('autoCollectBtn').addEventListener('click', () => this.toggleAutoCollect());
 
     // Action buttons
     document.getElementById('clearBtn').addEventListener('click', () => this.clearData());
@@ -219,6 +223,273 @@ class ParserPopup {
         statusEl.textContent = '';
       }, 4000);
     }
+  }
+
+  // =============== AUTO-COLLECT FUNCTIONALITY ===============
+
+  async toggleAutoCollect() {
+    if (this.isCollecting) {
+      this.stopAutoCollect();
+    } else {
+      await this.startAutoCollect();
+    }
+  }
+
+  async startAutoCollect() {
+    const btn = document.getElementById('autoCollectBtn');
+    const statusEl = document.getElementById('autoCollectStatus');
+    const delayInput = document.getElementById('collectDelay');
+    const maxPagesInput = document.getElementById('maxPages');
+
+    // Get current tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    if (!tab || !tab.url || !tab.url.includes('2gis.')) {
+      statusEl.textContent = 'Откройте страницу поиска 2ГИС';
+      statusEl.className = 'auto-collect-status error';
+      return;
+    }
+
+    if (!tab.url.includes('/search/')) {
+      statusEl.textContent = 'Выполните поиск на 2ГИС';
+      statusEl.className = 'auto-collect-status error';
+      return;
+    }
+
+    this.isCollecting = true;
+    btn.classList.add('collecting');
+    btn.querySelector('.text').textContent = 'Остановить сбор';
+    btn.querySelector('.icon').textContent = '⏹️';
+
+    const delay = parseFloat(delayInput.value) * 1000 || 2000;
+    const maxPages = parseInt(maxPagesInput.value) || 100;
+
+    statusEl.textContent = 'Запуск сбора...';
+    statusEl.className = 'auto-collect-status';
+
+    try {
+      // Inject and execute the auto-pagination script
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: this.autoCollectScript,
+        args: [delay, maxPages]
+      });
+
+      // Start monitoring progress
+      this.monitorProgress(tab.id, statusEl);
+
+    } catch (error) {
+      console.error('Auto-collect error:', error);
+      statusEl.textContent = 'Ошибка: ' + error.message;
+      statusEl.className = 'auto-collect-status error';
+      this.stopAutoCollect();
+    }
+  }
+
+  stopAutoCollect() {
+    const btn = document.getElementById('autoCollectBtn');
+    const statusEl = document.getElementById('autoCollectStatus');
+
+    this.isCollecting = false;
+    btn.classList.remove('collecting');
+    btn.querySelector('.text').textContent = 'Собрать все страницы';
+    btn.querySelector('.icon').textContent = '🔄';
+
+    // Send stop signal to the page
+    chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+      if (tab) {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            window.__2gisParserStop = true;
+          }
+        }).catch(() => {});
+      }
+    });
+
+    statusEl.textContent = 'Сбор остановлен';
+    statusEl.className = 'auto-collect-status';
+  }
+
+  monitorProgress(tabId, statusEl) {
+    const checkProgress = () => {
+      if (!this.isCollecting) return;
+
+      chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        func: () => {
+          return {
+            page: window.__2gisParserCurrentPage || 0,
+            total: window.__2gisParserTotalPages || '?',
+            done: window.__2gisParserDone || false,
+            error: window.__2gisParserError || null
+          };
+        }
+      }).then(results => {
+        if (!results || !results[0]) return;
+
+        const { page, total, done, error } = results[0].result;
+
+        if (error) {
+          statusEl.textContent = error;
+          statusEl.className = 'auto-collect-status error';
+          this.stopAutoCollect();
+          return;
+        }
+
+        if (done) {
+          statusEl.textContent = `Готово! Собрано ${page} страниц`;
+          statusEl.className = 'auto-collect-status success';
+          this.stopAutoCollect();
+          this.updateStats();
+          return;
+        }
+
+        statusEl.textContent = `Страница ${page} из ${total}...`;
+        statusEl.className = 'auto-collect-status';
+
+        setTimeout(checkProgress, 500);
+      }).catch(() => {
+        if (this.isCollecting) {
+          setTimeout(checkProgress, 1000);
+        }
+      });
+    };
+
+    setTimeout(checkProgress, 500);
+  }
+
+  // This function runs in the context of the 2GIS page
+  autoCollectScript(delay, maxPages) {
+    // Reset state
+    window.__2gisParserStop = false;
+    window.__2gisParserDone = false;
+    window.__2gisParserError = null;
+    window.__2gisParserCurrentPage = 0;
+    window.__2gisParserTotalPages = '?';
+
+    async function collectAllPages() {
+      try {
+        // Find pagination info
+        const getTotalPages = () => {
+          // Try to find total from "Места 19371" text
+          const placesText = document.querySelector('[class*="places"]')?.textContent ||
+                            document.querySelector('[class*="results"]')?.textContent || '';
+          const match = placesText.match(/(\d+)/);
+          if (match) {
+            const total = parseInt(match[1]);
+            return Math.ceil(total / 12);
+          }
+
+          // Try pagination buttons
+          const pageButtons = document.querySelectorAll('[class*="pagination"] button, [class*="Pagination"] button');
+          let maxPage = 1;
+          pageButtons.forEach(btn => {
+            const num = parseInt(btn.textContent);
+            if (!isNaN(num) && num > maxPage) maxPage = num;
+          });
+          return maxPage;
+        };
+
+        // Find next button
+        const findNextButton = () => {
+          // Method 1: Look for ">" or "→" button
+          const buttons = document.querySelectorAll('button, a[role="button"]');
+          for (const btn of buttons) {
+            const text = btn.textContent.trim();
+            const ariaLabel = btn.getAttribute('aria-label') || '';
+
+            if (text === '›' || text === '>' || text === '→' ||
+                ariaLabel.includes('next') || ariaLabel.includes('следующ') ||
+                btn.querySelector('svg[class*="arrow"]')) {
+
+              // Check if it's not disabled
+              if (!btn.disabled && !btn.classList.contains('disabled') &&
+                  btn.getAttribute('aria-disabled') !== 'true') {
+                return btn;
+              }
+            }
+          }
+
+          // Method 2: Find by class name patterns
+          const nextSelectors = [
+            '[class*="pagination"] [class*="next"]:not([disabled])',
+            '[class*="Pagination"] [class*="next"]:not([disabled])',
+            '[class*="pager"] [class*="next"]:not([disabled])',
+            'button[class*="Arrow"]:last-of-type:not([disabled])'
+          ];
+
+          for (const selector of nextSelectors) {
+            const el = document.querySelector(selector);
+            if (el && !el.disabled) return el;
+          }
+
+          return null;
+        };
+
+        // Get current page number
+        const getCurrentPage = () => {
+          // Look for active/current page button
+          const activeBtn = document.querySelector('[class*="pagination"] [class*="active"], [class*="pagination"] [aria-current="page"]');
+          if (activeBtn) {
+            const num = parseInt(activeBtn.textContent);
+            if (!isNaN(num)) return num;
+          }
+          return window.__2gisParserCurrentPage || 1;
+        };
+
+        let totalPages = getTotalPages();
+        window.__2gisParserTotalPages = Math.min(totalPages, maxPages);
+        let currentPage = getCurrentPage();
+        window.__2gisParserCurrentPage = currentPage;
+
+        console.log(`[2GIS Parser] Starting auto-collect. Total pages: ~${totalPages}, Max: ${maxPages}`);
+
+        while (currentPage < maxPages && !window.__2gisParserStop) {
+          // Wait for page to load
+          await new Promise(r => setTimeout(r, delay));
+
+          if (window.__2gisParserStop) break;
+
+          const nextBtn = findNextButton();
+
+          if (!nextBtn) {
+            console.log('[2GIS Parser] No more pages or next button not found');
+            break;
+          }
+
+          // Scroll next button into view and click
+          nextBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          await new Promise(r => setTimeout(r, 300));
+
+          nextBtn.click();
+          console.log(`[2GIS Parser] Clicked next, going to page ${currentPage + 1}`);
+
+          // Wait for content to update
+          await new Promise(r => setTimeout(r, delay));
+
+          currentPage = getCurrentPage();
+          if (currentPage === window.__2gisParserCurrentPage) {
+            // Page didn't change, try incrementing manually
+            currentPage++;
+          }
+          window.__2gisParserCurrentPage = currentPage;
+
+          // Update total if it changed
+          totalPages = getTotalPages();
+          window.__2gisParserTotalPages = Math.min(totalPages, maxPages);
+        }
+
+        window.__2gisParserDone = true;
+        console.log(`[2GIS Parser] Auto-collect finished. Pages collected: ${currentPage}`);
+
+      } catch (error) {
+        console.error('[2GIS Parser] Auto-collect error:', error);
+        window.__2gisParserError = error.message;
+      }
+    }
+
+    collectAllPages();
   }
 }
 
