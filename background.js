@@ -558,11 +558,10 @@ function formatItemsForExport(items, useMobileOnly = false) {
       'Оценок': item.rating?.ratingCount || '',
       'Отзывов': item.rating?.reviewCount || '',
       'График работы': item.workingTimeText || '',
-      'Организация': item.orgName || '',
       'Широта': item.latitude || '',
       'Долгота': item.longitude || '',
-      'Ссылка 2ГИС': item.link2GIS || '',
-      'Ссылка Яндекс.Карты': item.linkYandex || ''
+      'Открыть в 2ГИС': item.link2GIS || '',
+      'Открыть в Яндекс': item.linkYandex || ''
     };
   });
 }
@@ -577,23 +576,29 @@ async function exportToXLSX(items, useMobileOnly = false) {
   // Находим индексы столбцов со ссылками
   const headers = Object.keys(formatted[0] || {});
   const linkColumns = {
-    'Telegram': headers.indexOf('Telegram'),
-    'VK': headers.indexOf('VK'),
-    'WhatsApp': headers.indexOf('WhatsApp'),
-    'Ссылка 2ГИС': headers.indexOf('Ссылка 2ГИС'),
-    'Ссылка Яндекс.Карты': headers.indexOf('Ссылка Яндекс.Карты')
+    'Открыть в 2ГИС': { idx: headers.indexOf('Открыть в 2ГИС'), text: '2ГИС' },
+    'Открыть в Яндекс': { idx: headers.indexOf('Открыть в Яндекс'), text: 'Яндекс' },
+    'Telegram': { idx: headers.indexOf('Telegram'), text: 'Telegram' },
+    'VK': { idx: headers.indexOf('VK'), text: 'VK' },
+    'WhatsApp': { idx: headers.indexOf('WhatsApp'), text: 'WhatsApp' }
   };
 
-  // Добавляем гиперссылки
+  // Преобразуем URL в формулы HYPERLINK
   for (let row = 1; row <= range.e.r; row++) {
-    for (const [colName, colIdx] of Object.entries(linkColumns)) {
-      if (colIdx === -1) continue;
+    for (const [colName, colData] of Object.entries(linkColumns)) {
+      if (colData.idx === -1) continue;
 
-      const cellAddress = XLSX.utils.encode_cell({ r: row, c: colIdx });
+      const cellAddress = XLSX.utils.encode_cell({ r: row, c: colData.idx });
       const cell = ws[cellAddress];
 
       if (cell && cell.v && typeof cell.v === 'string' && cell.v.startsWith('http')) {
-        cell.l = { Target: cell.v, Tooltip: `Открыть ${colName}` };
+        // Создаём формулу HYPERLINK
+        const url = cell.v.replace(/"/g, '""'); // Экранируем кавычки
+        ws[cellAddress] = {
+          t: 's',
+          f: `HYPERLINK("${url}","${colData.text}")`,
+          v: colData.text
+        };
       }
     }
   }
@@ -616,11 +621,10 @@ async function exportToXLSX(items, useMobileOnly = false) {
     { wch: 10 },  // Оценок
     { wch: 10 },  // Отзывов
     { wch: 22 },  // График работы
-    { wch: 25 },  // Организация
     { wch: 12 },  // Широта
     { wch: 12 },  // Долгота
-    { wch: 35 },  // Ссылка 2ГИС
-    { wch: 45 }   // Ссылка Яндекс.Карты
+    { wch: 12 },  // Открыть в 2ГИС
+    { wch: 12 }   // Открыть в Яндекс
   ];
 
   const wb = XLSX.utils.book_new();
