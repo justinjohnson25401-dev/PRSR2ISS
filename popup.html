@@ -12,6 +12,8 @@
       --danger: #e53935;
       --danger-light: #ffebee;
       --warning: #ff9800;
+      --blue: #2196f3;
+      --blue-light: #e3f2fd;
       --text: #333;
       --text-secondary: #666;
       --bg: #ffffff;
@@ -27,107 +29,79 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      width: 340px;
       background: var(--bg);
       color: var(--text);
     }
 
-    /* Header */
     .header {
       background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
       color: white;
-      padding: 16px;
+      padding: 14px;
       text-align: center;
     }
 
     .header h1 {
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 600;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
 
     .header .version {
-      font-size: 11px;
+      font-size: 10px;
       opacity: 0.8;
     }
 
-    /* Stats Section */
     .stats {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      padding: 16px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      padding: 12px;
       background: var(--bg-secondary);
     }
 
     .stat-card {
       background: white;
-      border-radius: 8px;
-      padding: 12px;
+      border-radius: 6px;
+      padding: 8px 4px;
       text-align: center;
       box-shadow: var(--shadow);
     }
 
     .stat-card .number {
-      font-size: 28px;
+      font-size: 18px;
       font-weight: 700;
       color: var(--primary);
     }
 
     .stat-card .label {
-      font-size: 11px;
+      font-size: 9px;
       color: var(--text-secondary);
-      margin-top: 4px;
+      margin-top: 2px;
     }
 
-    /* Progress Section */
-    .progress-section {
-      padding: 0 16px 16px;
-      background: var(--bg-secondary);
-    }
+    .stat-card.blue .number { color: var(--blue); }
+    .stat-card.orange .number { color: var(--warning); }
 
-    .progress-bar {
-      height: 6px;
-      background: var(--border);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .progress-bar .fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
-      width: 0%;
-      transition: width 0.3s ease;
-    }
-
-    .progress-text {
-      font-size: 11px;
-      color: var(--text-secondary);
-      margin-top: 6px;
-      text-align: center;
-    }
-
-    /* Main Content */
     .content {
-      padding: 16px;
+      padding: 12px;
     }
 
-    /* Export Section */
     .section-title {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       color: var(--text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .export-buttons {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 16px;
+      gap: 6px;
+      margin-bottom: 12px;
     }
 
     .btn {
@@ -135,9 +109,9 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 12px 8px;
+      padding: 10px 6px;
       border: none;
-      border-radius: 8px;
+      border-radius: 6px;
       cursor: pointer;
       transition: all 0.2s ease;
       font-family: inherit;
@@ -151,33 +125,31 @@
     .btn-export:hover {
       background: var(--primary);
       color: white;
-      transform: translateY(-2px);
-      box-shadow: var(--shadow);
+      transform: translateY(-1px);
     }
 
     .btn-export .icon {
-      font-size: 20px;
-      margin-bottom: 4px;
+      font-size: 18px;
+      margin-bottom: 2px;
     }
 
     .btn-export .text {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 500;
     }
 
-    /* Filter Section */
     .filters {
       background: var(--bg-secondary);
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 16px;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 12px;
     }
 
     .filter-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 0;
+      padding: 6px 0;
       border-bottom: 1px solid var(--border);
     }
 
@@ -186,48 +158,52 @@
     }
 
     .filter-row label {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .filter-row label .icon {
+      font-size: 12px;
     }
 
     .filter-row input[type="number"] {
-      width: 60px;
-      padding: 4px 8px;
+      width: 50px;
+      padding: 3px 6px;
       border: 1px solid var(--border);
       border-radius: 4px;
-      font-size: 12px;
+      font-size: 11px;
       text-align: center;
     }
 
     .filter-row input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       accent-color: var(--primary);
     }
 
-    /* Action Buttons */
+    .filter-hint {
+      font-size: 9px;
+      color: var(--text-secondary);
+      padding: 6px 0 0;
+      border-top: 1px dashed var(--border);
+      margin-top: 6px;
+    }
+
     .actions {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 16px;
+      gap: 6px;
+      margin-bottom: 10px;
     }
 
     .btn-action {
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 13px;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 12px;
       font-weight: 500;
-    }
-
-    .btn-primary {
-      background: var(--primary);
-      color: white;
-      grid-column: 1 / -1;
-    }
-
-    .btn-primary:hover {
-      background: var(--primary-dark);
     }
 
     .btn-secondary {
@@ -250,13 +226,12 @@
       color: white;
     }
 
-    /* Status Message */
     .status {
-      padding: 10px;
-      border-radius: 6px;
-      font-size: 12px;
+      padding: 8px;
+      border-radius: 5px;
+      font-size: 11px;
       text-align: center;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       display: none;
     }
 
@@ -278,22 +253,21 @@
       color: var(--warning);
     }
 
-    /* Footer */
     .footer {
-      padding: 12px 16px;
+      padding: 10px 12px;
       border-top: 1px solid var(--border);
       display: flex;
       justify-content: center;
-      gap: 16px;
+      gap: 14px;
     }
 
     .footer-link {
-      font-size: 11px;
+      font-size: 10px;
       color: var(--text-secondary);
       text-decoration: none;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 3px;
       cursor: pointer;
     }
 
@@ -301,106 +275,51 @@
       color: var(--primary);
     }
 
-    /* Tooltip */
-    .tooltip {
-      position: relative;
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 8px 0;
     }
 
-    .tooltip::after {
-      content: attr(data-tooltip);
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--text);
-      color: white;
-      padding: 4px 8px;
-      border-radius: 4px;
+    .filter-group-title {
       font-size: 10px;
-      white-space: nowrap;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin: 8px 0 4px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--border);
     }
 
-    .tooltip:hover::after {
-      opacity: 1;
-    }
-
-    /* Dark theme toggle */
-    .theme-toggle {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      background: rgba(255,255,255,0.2);
-      border: none;
-      border-radius: 50%;
-      width: 28px;
-      height: 28px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: background 0.2s;
-    }
-
-    .theme-toggle:hover {
-      background: rgba(255,255,255,0.3);
-    }
-
-    /* Loading state */
-    .loading {
-      opacity: 0.6;
-      pointer-events: none;
-    }
-
-    .spinner {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border: 2px solid currentColor;
-      border-right-color: transparent;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-right: 6px;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* Animation */
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-
-    .pulse {
-      animation: pulse 2s infinite;
+    .filter-group-title:first-child {
+      border-top: none;
+      margin-top: 0;
+      padding-top: 0;
     }
   </style>
 </head>
 <body>
-  <div class="header" style="position: relative;">
-    <button class="theme-toggle" id="themeToggle" title="Переключить тему">🌙</button>
+  <div class="header">
     <h1>2GIS Parser Pro</h1>
-    <div class="version">v2.0.0</div>
+    <div class="version">v2.1.0</div>
   </div>
 
   <div class="stats">
     <div class="stat-card">
       <div class="number" id="totalCount">0</div>
-      <div class="label">Компаний собрано</div>
+      <div class="label">Всего</div>
     </div>
     <div class="stat-card">
       <div class="number" id="withPhones">0</div>
-      <div class="label">С телефонами</div>
+      <div class="label">Телефоны</div>
     </div>
-  </div>
-
-  <div class="progress-section">
-    <div class="progress-bar">
-      <div class="fill" id="progressFill"></div>
+    <div class="stat-card blue">
+      <div class="number" id="withTelegram">0</div>
+      <div class="label">Telegram</div>
     </div>
-    <div class="progress-text" id="progressText">Ожидание данных...</div>
+    <div class="stat-card orange">
+      <div class="number" id="withMobile">0</div>
+      <div class="label">Мобильные</div>
+    </div>
   </div>
 
   <div class="content">
@@ -408,15 +327,15 @@
 
     <div class="section-title">Экспорт данных</div>
     <div class="export-buttons">
-      <button class="btn btn-export tooltip" id="downloadXlsx" data-tooltip="Microsoft Excel">
+      <button class="btn btn-export" id="downloadXlsx">
         <span class="icon">📊</span>
         <span class="text">XLSX</span>
       </button>
-      <button class="btn btn-export tooltip" id="downloadCsv" data-tooltip="CSV для импорта">
+      <button class="btn btn-export" id="downloadCsv">
         <span class="icon">📄</span>
         <span class="text">CSV</span>
       </button>
-      <button class="btn btn-export tooltip" id="downloadJson" data-tooltip="Для разработчиков">
+      <button class="btn btn-export" id="downloadJson">
         <span class="icon">🔧</span>
         <span class="text">JSON</span>
       </button>
@@ -424,21 +343,44 @@
 
     <div class="section-title">Фильтры</div>
     <div class="filters">
+      <div class="filter-group-title">Контакты</div>
+
       <div class="filter-row">
-        <label for="filterRating">Мин. рейтинг</label>
-        <input type="number" id="filterRating" min="0" max="5" step="0.1" value="0" placeholder="0">
+        <label><span class="icon">📱</span> Только мобильные (+79...)</label>
+        <input type="checkbox" id="filterMobile">
       </div>
+
       <div class="filter-row">
-        <label for="filterPhone">Только с телефоном</label>
+        <label><span class="icon">📞</span> С любым телефоном</label>
         <input type="checkbox" id="filterPhone">
       </div>
+
       <div class="filter-row">
-        <label for="filterEmail">Только с email</label>
+        <label><span class="icon">✉️</span> С email</label>
         <input type="checkbox" id="filterEmail">
       </div>
+
       <div class="filter-row">
-        <label for="filterSite">Только с сайтом</label>
+        <label><span class="icon">🌐</span> С сайтом</label>
         <input type="checkbox" id="filterSite">
+      </div>
+
+      <div class="filter-group-title">Соцсети</div>
+
+      <div class="filter-row">
+        <label><span class="icon">✈️</span> С Telegram</label>
+        <input type="checkbox" id="filterTelegram">
+      </div>
+
+      <div class="filter-group-title">Рейтинг</div>
+
+      <div class="filter-row">
+        <label><span class="icon">⭐</span> Мин. рейтинг</label>
+        <input type="number" id="filterRating" min="0" max="5" step="0.1" value="0">
+      </div>
+
+      <div class="filter-hint">
+        Фильтры применяются при экспорте. Выбранные опции сужают выборку.
       </div>
     </div>
 

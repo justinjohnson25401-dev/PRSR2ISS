@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Background Service Worker v2.0
+// 2GIS Parser Pro - Background Service Worker v2.1
 // Без внешней телеметрии, все данные хранятся локально
 
 importScripts('xlsx.full.min.js');
@@ -8,24 +8,143 @@ const STORAGE_KEY = 'uniqueData_2gis_parser_pro_v2';
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
+// Городские коды (служебные номера)
+const CITY_CODES = ['495', '499', '343', '383', '381', '812', '863', '846', '831', '843', '473', '861', '351', '342', '391', '347', '862'];
+
 // =============== CRYPTO PARAMS ===============
 let cryptoParams = { h: null, g: null, salt: null };
 
+// =============== PHONE NORMALIZATION ===============
+
+function normalizePhone(phone) {
+  if (!phone) return '';
+
+  // Убираем все кроме цифр
+  let digits = phone.replace(/\D/g, '');
+
+  // Если начинается с 8 и 11 цифр - заменяем на 7
+  if (digits.length === 11 && digits.startsWith('8')) {
+    digits = '7' + digits.slice(1);
+  }
+
+  // Если 10 цифр - добавляем 7
+  if (digits.length === 10) {
+    digits = '7' + digits;
+  }
+
+  // Возвращаем в формате +7XXXXXXXXXX
+  if (digits.length === 11 && digits.startsWith('7')) {
+    return '+' + digits;
+  }
+
+  return phone; // Возвращаем оригинал если не получилось
+}
+
+function isMobilePhone(phone) {
+  const normalized = normalizePhone(phone);
+  if (!normalized.startsWith('+7')) return false;
+
+  const digits = normalized.replace(/\D/g, '');
+  if (digits.length !== 11) return false;
+
+  // Проверяем что это не городской номер
+  const code = digits.slice(1, 4); // Берём 3 цифры после 7
+
+  // Мобильные коды начинаются с 9
+  return code.startsWith('9');
+}
+
+function formatPhonesNormalized(phones) {
+  if (!phones || !Array.isArray(phones) || phones.length === 0) return '';
+  return phones.map(normalizePhone).join(', ');
+}
+
+function getMobilePhones(phones) {
+  if (!phones || !Array.isArray(phones)) return [];
+  return phones.filter(isMobilePhone).map(normalizePhone);
+}
+
+// =============== SOCIAL LINKS PARSING ===============
+
+function parseSocialLinks(socialLinks) {
+  const result = {
+    telegram: '',
+    telegramUsername: '',
+    vk: '',
+    whatsapp: '',
+    other: []
+  };
+
+  if (!socialLinks || !Array.isArray(socialLinks)) return result;
+
+  for (const link of socialLinks) {
+    const url = String(link).toLowerCase();
+
+    if (url.includes('t.me/') || url.includes('telegram.')) {
+      result.telegram = link;
+      // Извлекаем username
+      const match = link.match(/t\.me\/([^\/\?]+)/i);
+      if (match) {
+        result.telegramUsername = '@' + match[1];
+      }
+    } else if (url.includes('vk.com/') || url.includes('vkontakte.')) {
+      result.vk = link;
+    } else if (url.includes('wa.me/') || url.includes('whatsapp.') || url.includes('api.whatsapp.')) {
+      result.whatsapp = link;
+    } else {
+      result.other.push(link);
+    }
+  }
+
+  return result;
+}
+
+// =============== NAME PARSING ===============
+
+function parseCompanyName(fullName, rubrics) {
+  // fullName может быть "Сияй, Парикмахерская, Сложное окрашивание"
+  // или просто "Сияй"
+  // rubrics содержит категории из API
+
+  const result = {
+    name: '',
+    category: '',
+    specialization: ''
+  };
+
+  if (!fullName) return result;
+
+  // Разбиваем по запятой
+  const parts = fullName.split(',').map(p => p.trim());
+
+  if (parts.length >= 1) {
+    result.name = parts[0];
+  }
+
+  if (parts.length >= 2) {
+    result.category = parts[1];
+  }
+
+  if (parts.length >= 3) {
+    result.specialization = parts.slice(2).join(', ');
+  }
+
+  // Если категория пустая, берём из рубрик
+  if (!result.category && rubrics) {
+    const rubricList = rubrics.split(',').map(r => r.trim());
+    if (rubricList.length > 0) {
+      result.category = rubricList[0];
+    }
+    if (rubricList.length > 1 && !result.specialization) {
+      result.specialization = rubricList.slice(1).join(', ');
+    }
+  }
+
+  return result;
+}
+
 // =============== HELPER FUNCTIONS ===============
 
-// Форматирование рейтинга
-function formatRating(rating) {
-  if (!rating) return '';
-  return `Рейтинг: ${rating.ratingValue || '-'} (${rating.ratingCount || 0} оценок, ${rating.reviewCount || 0} отзывов)`;
-}
-
-// Форматирование контактов
-function formatContacts(contacts) {
-  if (!contacts || !Array.isArray(contacts) || contacts.length === 0) return '';
-  return contacts.join(', ');
-}
-
-// Форматирование ссылок
 function formatLinks(links) {
   if (!links || !Array.isArray(links) || links.length === 0) return '';
   if (typeof links[0] === 'object' && links[0] !== null && 'href' in links[0]) {
@@ -34,7 +153,6 @@ function formatLinks(links) {
   return links.join('\n');
 }
 
-// Форматирование расписания
 function formatSchedule(schedule) {
   const dayNames = { Mon: 'пн', Tue: 'вт', Wed: 'ср', Thu: 'чт', Fri: 'пт', Sat: 'сб', Sun: 'вс' };
   const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -87,7 +205,6 @@ function formatSchedule(schedule) {
   return ranges.join('; ');
 }
 
-// Категоризация контактов
 function categorizeContacts(contactGroups) {
   const result = { phones: [], website: [], social: [], emails: [] };
 
@@ -119,20 +236,17 @@ function categorizeContacts(contactGroups) {
   return result;
 }
 
-// Генерация ссылки на 2ГИС карту
-function generate2GISMapLink(lat, lon, title) {
+function generate2GISMapLink(lat, lon) {
   if (!lat || !lon) return '';
   return `https://2gis.ru/geo/${lon}%2C${lat}`;
 }
 
-// Генерация ссылки на Яндекс карту
 function generateYandexMapLink(lat, lon, title) {
   if (!lat || !lon) return '';
   const encodedTitle = encodeURIComponent(title || 'Точка');
   return `https://yandex.ru/maps/?pt=${lon},${lat}&z=17&l=map&text=${encodedTitle}`;
 }
 
-// Обновление бейджа
 function updateBadge(count) {
   const text = count ? count.toString() : '';
   chrome.action.setBadgeText({ text });
@@ -217,7 +331,6 @@ async function loadCryptoParams() {
     const scriptRes = await fetch(match[1]);
     const text = await scriptRes.text();
 
-    // Parse m array
     const mMatch = text.match(/const\s+m\s*=\s*\[([^\]]+)\]/);
     if (mMatch) {
       const m = mMatch[1].split(',').map(n => parseInt(n.trim(), 10));
@@ -227,7 +340,6 @@ async function loadCryptoParams() {
       }
     }
 
-    // Parse salt
     const classRegex = /class\s+\w+\s*{[\s\S]*?constructor\s*\(([^)]*)\)\s*{([\s\S]*?)this\.KEY\s*=\s*t\.webApiKey\s*,\s*this\.a\s*=\s*["'`]([^"'`]+)["'`]/;
     const classMatch = text.match(classRegex);
     if (classMatch) {
@@ -307,6 +419,7 @@ function buildByIdUrl(searchUrl, itemId) {
 
 function extractItemData(detailItem) {
   const contacts = categorizeContacts(detailItem.contact_groups);
+  const socialParsed = parseSocialLinks(contacts.social);
 
   // Extract coordinates
   let lat = null, lon = null;
@@ -315,33 +428,65 @@ function extractItemData(detailItem) {
     lon = detailItem.point.lon;
   }
 
-  // Extract rubrics (categories)
+  // Extract rubrics
   const rubrics = detailItem.rubrics
     ? detailItem.rubrics.map(r => r.name).join(', ')
     : '';
 
+  // Parse company name
+  const nameParsed = parseCompanyName(detailItem.name, rubrics);
+
   return {
-    title: detailItem.name || '',
+    // Parsed name parts
+    name: nameParsed.name,
+    category: nameParsed.category,
+    specialization: nameParsed.specialization,
+
+    // Original full name for compatibility
+    fullName: detailItem.name || '',
+
     address: detailItem.address_name || '',
+
+    // Rating
     rating: detailItem.reviews ? {
       ratingValue: detailItem.reviews.general_rating || '',
       ratingCount: detailItem.reviews.general_review_count_with_stars || 0,
       reviewCount: detailItem.reviews.general_review_count || 0
     } : null,
+
+    // Contacts - raw phones
     contacts: contacts.phones || [],
+    // Normalized phones
+    phonesNormalized: contacts.phones ? contacts.phones.map(normalizePhone) : [],
+    // Only mobile phones
+    mobilePhones: getMobilePhones(contacts.phones),
+
+    // URLs
     urls: contacts.website || [],
-    socialLinks: contacts.social || [],
     emails: contacts.emails || [],
+
+    // Social links parsed
+    telegram: socialParsed.telegram,
+    telegramUsername: socialParsed.telegramUsername,
+    vk: socialParsed.vk,
+    whatsapp: socialParsed.whatsapp,
+    otherSocial: socialParsed.other,
+
+    // Schedule
     workingTimeText: formatSchedule(detailItem.schedule) || '',
+
+    // Rubrics
     rubrics: rubrics,
+
     // Coordinates
     latitude: lat,
     longitude: lon,
+
     // Map links
-    link2GIS: generate2GISMapLink(lat, lon, detailItem.name),
-    linkYandex: generateYandexMapLink(lat, lon, detailItem.name),
-    // Additional info
-    description: detailItem.description || '',
+    link2GIS: generate2GISMapLink(lat, lon),
+    linkYandex: generateYandexMapLink(lat, lon, nameParsed.name),
+
+    // Organization
     orgName: detailItem.org?.name || ''
   };
 }
@@ -363,6 +508,11 @@ function applyFilters(items, filters) {
       if (!item.contacts || item.contacts.length === 0) return false;
     }
 
+    // Only mobile phones filter
+    if (filters.onlyMobilePhones) {
+      if (!item.mobilePhones || item.mobilePhones.length === 0) return false;
+    }
+
     // Email filter
     if (filters.onlyWithEmail) {
       if (!item.emails || item.emails.length === 0) return false;
@@ -373,57 +523,104 @@ function applyFilters(items, filters) {
       if (!item.urls || item.urls.length === 0) return false;
     }
 
+    // Telegram filter
+    if (filters.onlyWithTelegram) {
+      if (!item.telegram) return false;
+    }
+
     return true;
   });
 }
 
 // =============== EXPORT FUNCTIONS ===============
 
-function formatItemsForExport(items) {
-  return items.map(item => ({
-    'Название': item.title,
-    'Адрес': item.address,
-    'Телефоны': formatContacts(item.contacts),
-    'Email': formatLinks(item.emails),
-    'Сайты': formatLinks(item.urls),
-    'Соцсети': formatLinks(item.socialLinks),
-    'Рейтинг': item.rating?.ratingValue || '',
-    'Кол-во оценок': item.rating?.ratingCount || '',
-    'Кол-во отзывов': item.rating?.reviewCount || '',
-    'График работы': item.workingTimeText,
-    'Рубрики': item.rubrics || '',
-    'Описание': item.description || '',
-    'Организация': item.orgName || '',
-    'Широта': item.latitude || '',
-    'Долгота': item.longitude || '',
-    'Открыть в 2ГИС': item.link2GIS || '',
-    'Открыть в Яндекс.Картах': item.linkYandex || ''
-  }));
+function formatItemsForExport(items, useMobileOnly = false) {
+  return items.map(item => {
+    // Выбираем какие телефоны использовать
+    const phones = useMobileOnly && item.mobilePhones?.length > 0
+      ? item.mobilePhones
+      : item.phonesNormalized || [];
+
+    return {
+      'Название': item.name || '',
+      'Категория': item.category || '',
+      'Специализация': item.specialization || '',
+      'Адрес': item.address || '',
+      'Телефоны': phones.join(', '),
+      'Email': (item.emails || []).join(', '),
+      'Сайт': (item.urls || []).join(', '),
+      'Telegram': item.telegram || '',
+      'Telegram username': item.telegramUsername || '',
+      'VK': item.vk || '',
+      'WhatsApp': item.whatsapp || '',
+      'Прочие соцсети': (item.otherSocial || []).join(', '),
+      'Рейтинг': item.rating?.ratingValue || '',
+      'Оценок': item.rating?.ratingCount || '',
+      'Отзывов': item.rating?.reviewCount || '',
+      'График работы': item.workingTimeText || '',
+      'Организация': item.orgName || '',
+      'Широта': item.latitude || '',
+      'Долгота': item.longitude || '',
+      'Ссылка 2ГИС': item.link2GIS || '',
+      'Ссылка Яндекс.Карты': item.linkYandex || ''
+    };
+  });
 }
 
-async function exportToXLSX(items) {
-  const formatted = formatItemsForExport(items);
+async function exportToXLSX(items, useMobileOnly = false) {
+  const formatted = formatItemsForExport(items, useMobileOnly);
   const ws = XLSX.utils.json_to_sheet(formatted);
+
+  // Получаем диапазон ячеек
+  const range = XLSX.utils.decode_range(ws['!ref']);
+
+  // Находим индексы столбцов со ссылками
+  const headers = Object.keys(formatted[0] || {});
+  const linkColumns = {
+    'Telegram': headers.indexOf('Telegram'),
+    'VK': headers.indexOf('VK'),
+    'WhatsApp': headers.indexOf('WhatsApp'),
+    'Ссылка 2ГИС': headers.indexOf('Ссылка 2ГИС'),
+    'Ссылка Яндекс.Карты': headers.indexOf('Ссылка Яндекс.Карты')
+  };
+
+  // Добавляем гиперссылки
+  for (let row = 1; row <= range.e.r; row++) {
+    for (const [colName, colIdx] of Object.entries(linkColumns)) {
+      if (colIdx === -1) continue;
+
+      const cellAddress = XLSX.utils.encode_cell({ r: row, c: colIdx });
+      const cell = ws[cellAddress];
+
+      if (cell && cell.v && typeof cell.v === 'string' && cell.v.startsWith('http')) {
+        cell.l = { Target: cell.v, Tooltip: `Открыть ${colName}` };
+      }
+    }
+  }
 
   // Set column widths
   ws['!cols'] = [
-    { wch: 30 },  // Название
-    { wch: 40 },  // Адрес
+    { wch: 25 },  // Название
+    { wch: 20 },  // Категория
+    { wch: 25 },  // Специализация
+    { wch: 35 },  // Адрес
     { wch: 20 },  // Телефоны
     { wch: 25 },  // Email
-    { wch: 30 },  // Сайты
-    { wch: 30 },  // Соцсети
+    { wch: 30 },  // Сайт
+    { wch: 30 },  // Telegram
+    { wch: 18 },  // Telegram username
+    { wch: 30 },  // VK
+    { wch: 30 },  // WhatsApp
+    { wch: 25 },  // Прочие соцсети
     { wch: 8 },   // Рейтинг
-    { wch: 12 },  // Кол-во оценок
-    { wch: 12 },  // Кол-во отзывов
-    { wch: 25 },  // График работы
-    { wch: 30 },  // Рубрики
-    { wch: 50 },  // Описание
+    { wch: 10 },  // Оценок
+    { wch: 10 },  // Отзывов
+    { wch: 22 },  // График работы
     { wch: 25 },  // Организация
     { wch: 12 },  // Широта
     { wch: 12 },  // Долгота
-    { wch: 40 },  // Открыть в 2ГИС
-    { wch: 50 }   // Открыть в Яндекс.Картах
+    { wch: 35 },  // Ссылка 2ГИС
+    { wch: 45 }   // Ссылка Яндекс.Карты
   ];
 
   const wb = XLSX.utils.book_new();
@@ -439,8 +636,8 @@ async function exportToXLSX(items) {
   });
 }
 
-function exportToCSV(items) {
-  const formatted = formatItemsForExport(items);
+function exportToCSV(items, useMobileOnly = false) {
+  const formatted = formatItemsForExport(items, useMobileOnly);
 
   if (formatted.length === 0) return '';
 
@@ -450,7 +647,6 @@ function exportToCSV(items) {
   for (const row of formatted) {
     const values = headers.map(header => {
       const val = row[header] || '';
-      // Escape quotes and wrap in quotes
       const escaped = String(val).replace(/"/g, '""');
       return `"${escaped}"`;
     });
@@ -483,10 +679,8 @@ chrome.webRequest.onCompleted.addListener(
 
       console.log('[Background] Processing URL:', details.url);
 
-      // Load crypto params if needed
       await loadCryptoParams();
 
-      // Fetch items list
       const items = await fetchWithRetry(details.url);
 
       if (!items?.result?.items?.length) {
@@ -496,7 +690,6 @@ chrome.webRequest.onCompleted.addListener(
 
       console.log(`[Background] Found ${items.result.items.length} items`);
 
-      // Process each item
       for (const item of items.result.items) {
         const key = item.id?.split('_')[0] || `${item.name}|${item.address_name}`;
 
@@ -504,7 +697,6 @@ chrome.webRequest.onCompleted.addListener(
 
         uniqueItemKeys.add(key);
 
-        // Fetch item details
         const detailUrl = buildByIdUrl(details.url, item.id);
         if (!detailUrl) {
           console.error('[Background] Could not build detail URL for:', item.id);
@@ -517,9 +709,8 @@ chrome.webRequest.onCompleted.addListener(
           const extracted = extractItemData(detail.result.items[0]);
           uniqueItems.push(extracted);
           await saveToStorage(capturedUrls, uniqueItems, uniqueItemKeys);
-          console.log('[Background] Added:', extracted.title);
+          console.log('[Background] Added:', extracted.name);
         } else {
-          // Reset crypto params on failure
           cryptoParams = { h: null, g: null, salt: null };
           console.error('[Background] Failed to get details for:', item.id);
         }
@@ -554,7 +745,7 @@ chrome.webRequest.onCompleted.addListener(
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   handleMessage(message, sendResponse);
-  return true; // Keep message channel open for async response
+  return true;
 });
 
 async function handleMessage(message, sendResponse) {
@@ -571,17 +762,18 @@ async function handleMessage(message, sendResponse) {
       }
 
       try {
-        let dataUrl, filename, mimeType;
+        let dataUrl, filename;
         const format = message.format || 'xlsx';
+        const useMobileOnly = message.filters?.onlyMobilePhones || false;
 
         switch (format) {
           case 'xlsx':
-            dataUrl = await exportToXLSX(filtered);
+            dataUrl = await exportToXLSX(filtered, useMobileOnly);
             filename = `2gis_export_${Date.now()}.xlsx`;
             break;
 
           case 'csv':
-            const csvContent = exportToCSV(filtered);
+            const csvContent = exportToCSV(filtered, useMobileOnly);
             const csvBlob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
             dataUrl = await new Promise(resolve => {
               const reader = new FileReader();
@@ -623,16 +815,24 @@ async function handleMessage(message, sendResponse) {
 
     case 'getStats': {
       const withPhones = uniqueItems.filter(i => i.contacts && i.contacts.length > 0).length;
+      const withMobilePhones = uniqueItems.filter(i => i.mobilePhones && i.mobilePhones.length > 0).length;
       const withEmails = uniqueItems.filter(i => i.emails && i.emails.length > 0).length;
       const withSites = uniqueItems.filter(i => i.urls && i.urls.length > 0).length;
+      const withTelegram = uniqueItems.filter(i => i.telegram).length;
+      const withVK = uniqueItems.filter(i => i.vk).length;
+      const withWhatsApp = uniqueItems.filter(i => i.whatsapp).length;
 
       sendResponse({
         status: 'ok',
         stats: {
           total: uniqueItems.length,
           withPhones,
+          withMobilePhones,
           withEmails,
-          withSites
+          withSites,
+          withTelegram,
+          withVK,
+          withWhatsApp
         }
       });
       break;

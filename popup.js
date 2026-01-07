@@ -1,13 +1,14 @@
-// 2GIS Parser Pro - Popup Script v2.0
-// Без внешней телеметрии, все данные хранятся локально
+// 2GIS Parser Pro - Popup Script v2.1
 
 class ParserPopup {
   constructor() {
     this.filters = {
       minRating: 0,
       onlyWithPhone: false,
+      onlyMobilePhones: false,
       onlyWithEmail: false,
-      onlyWithSite: false
+      onlyWithSite: false,
+      onlyWithTelegram: false
     };
     this.init();
   }
@@ -41,32 +42,35 @@ class ParserPopup {
       chrome.tabs.create({ url: `instruction/${lang}.html` });
     });
 
-    // Theme toggle
-    document.getElementById('themeToggle').addEventListener('click', () => this.toggleTheme());
-
     // Filters
     document.getElementById('filterRating').addEventListener('change', (e) => {
       this.filters.minRating = parseFloat(e.target.value) || 0;
       this.saveFilters();
-      this.updateStats();
     });
 
     document.getElementById('filterPhone').addEventListener('change', (e) => {
       this.filters.onlyWithPhone = e.target.checked;
       this.saveFilters();
-      this.updateStats();
+    });
+
+    document.getElementById('filterMobile').addEventListener('change', (e) => {
+      this.filters.onlyMobilePhones = e.target.checked;
+      this.saveFilters();
     });
 
     document.getElementById('filterEmail').addEventListener('change', (e) => {
       this.filters.onlyWithEmail = e.target.checked;
       this.saveFilters();
-      this.updateStats();
     });
 
     document.getElementById('filterSite').addEventListener('change', (e) => {
       this.filters.onlyWithSite = e.target.checked;
       this.saveFilters();
-      this.updateStats();
+    });
+
+    document.getElementById('filterTelegram').addEventListener('change', (e) => {
+      this.filters.onlyWithTelegram = e.target.checked;
+      this.saveFilters();
     });
   }
 
@@ -78,10 +82,12 @@ class ParserPopup {
     chrome.storage.local.get(['parserFilters'], (result) => {
       if (result.parserFilters) {
         this.filters = result.parserFilters;
-        document.getElementById('filterRating').value = this.filters.minRating;
-        document.getElementById('filterPhone').checked = this.filters.onlyWithPhone;
-        document.getElementById('filterEmail').checked = this.filters.onlyWithEmail;
-        document.getElementById('filterSite').checked = this.filters.onlyWithSite;
+        document.getElementById('filterRating').value = this.filters.minRating || 0;
+        document.getElementById('filterPhone').checked = this.filters.onlyWithPhone || false;
+        document.getElementById('filterMobile').checked = this.filters.onlyMobilePhones || false;
+        document.getElementById('filterEmail').checked = this.filters.onlyWithEmail || false;
+        document.getElementById('filterSite').checked = this.filters.onlyWithSite || false;
+        document.getElementById('filterTelegram').checked = this.filters.onlyWithTelegram || false;
       }
     });
   }
@@ -91,47 +97,15 @@ class ParserPopup {
       if (response && response.status === 'ok') {
         const stats = response.stats;
 
-        // Update counters
         document.getElementById('totalCount').textContent = stats.total || 0;
         document.getElementById('withPhones').textContent = stats.withPhones || 0;
-
-        // Update progress
-        const progressFill = document.getElementById('progressFill');
-        const progressText = document.getElementById('progressText');
-
-        if (stats.total > 0) {
-          const phonePercent = Math.round((stats.withPhones / stats.total) * 100);
-          progressFill.style.width = `${phonePercent}%`;
-          progressText.textContent = `${stats.withPhones} из ${stats.total} с телефонами (${phonePercent}%)`;
-        } else {
-          progressFill.style.width = '0%';
-          progressText.textContent = 'Откройте 2ГИС и выполните поиск';
-        }
-
-        // Update filtered count if filters active
-        if (this.hasActiveFilters()) {
-          chrome.runtime.sendMessage({
-            action: 'getFilteredCount',
-            filters: this.filters
-          }, (filteredResponse) => {
-            if (filteredResponse && filteredResponse.status === 'ok') {
-              progressText.textContent = `Отфильтровано: ${filteredResponse.count} из ${stats.total}`;
-            }
-          });
-        }
+        document.getElementById('withTelegram').textContent = stats.withTelegram || 0;
+        document.getElementById('withMobile').textContent = stats.withMobilePhones || 0;
       }
     });
   }
 
-  hasActiveFilters() {
-    return this.filters.minRating > 0 ||
-           this.filters.onlyWithPhone ||
-           this.filters.onlyWithEmail ||
-           this.filters.onlyWithSite;
-  }
-
   startAutoUpdate() {
-    // Update stats every 2 seconds
     setInterval(() => this.updateStats(), 2000);
   }
 
@@ -144,28 +118,28 @@ class ParserPopup {
       filters: this.filters
     }, (response) => {
       if (!response) {
-        this.showStatus('Ошибка соединения с расширением', 'error');
+        this.showStatus('Ошибка соединения', 'error');
         return;
       }
 
       if (response.status === 'ok') {
-        this.showStatus(`Файл ${format.toUpperCase()} успешно скачан!`, 'success');
+        this.showStatus(`Экспортировано ${response.count} компаний!`, 'success');
       } else if (response.status === 'empty') {
         this.showStatus('Нет данных для экспорта', 'warning');
       } else {
-        this.showStatus(response.message || 'Ошибка при скачивании', 'error');
+        this.showStatus(response.message || 'Ошибка', 'error');
       }
     });
   }
 
   clearData() {
-    if (confirm('Вы уверены, что хотите удалить все собранные данные?')) {
+    if (confirm('Удалить все собранные данные?')) {
       chrome.runtime.sendMessage({ action: 'clear' }, (response) => {
         if (response && response.status === 'ok') {
-          this.showStatus('Данные успешно очищены', 'success');
+          this.showStatus('Данные очищены', 'success');
           this.updateStats();
         } else {
-          this.showStatus('Ошибка при очистке данных', 'error');
+          this.showStatus('Ошибка очистки', 'error');
         }
       });
     }
@@ -178,26 +152,33 @@ class ParserPopup {
       limit: 5
     }, (response) => {
       if (response && response.status === 'ok' && response.items.length > 0) {
-        let previewHtml = '<div style="max-height: 300px; overflow-y: auto; font-size: 11px;">';
-        response.items.forEach((item, index) => {
-          previewHtml += `
-            <div style="padding: 8px; border-bottom: 1px solid #eee;">
-              <strong>${index + 1}. ${item.title}</strong><br>
-              <span style="color: #666;">${item.address || 'Нет адреса'}</span><br>
-              ${item.contacts ? `📞 ${item.contacts.slice(0, 2).join(', ')}` : ''}
-              ${item.rating?.ratingValue ? `⭐ ${item.rating.ratingValue}` : ''}
+        let html = '<div style="max-height:250px;overflow-y:auto;font-size:10px;">';
+        response.items.forEach((item, i) => {
+          const phones = item.mobilePhones?.length > 0
+            ? item.mobilePhones.slice(0, 2).join(', ')
+            : (item.phonesNormalized?.slice(0, 2).join(', ') || '');
+
+          html += `
+            <div style="padding:6px;border-bottom:1px solid #eee;">
+              <strong>${i + 1}. ${item.name || 'Без названия'}</strong>
+              ${item.category ? `<span style="color:#666;"> - ${item.category}</span>` : ''}
+              <br>
+              <span style="color:#888;">${item.address || ''}</span>
+              ${phones ? `<br>📞 ${phones}` : ''}
+              ${item.telegram ? `<br>✈️ ${item.telegramUsername || 'Telegram'}` : ''}
+              ${item.rating?.ratingValue ? `<br>⭐ ${item.rating.ratingValue}` : ''}
             </div>
           `;
         });
-        previewHtml += '</div>';
+        html += '</div>';
 
         if (response.total > 5) {
-          previewHtml += `<div style="text-align: center; padding: 8px; color: #666; font-size: 11px;">... и ещё ${response.total - 5} компаний</div>`;
+          html += `<div style="text-align:center;padding:6px;color:#666;font-size:10px;">... и ещё ${response.total - 5}</div>`;
         }
 
-        this.showStatus(previewHtml, 'success', true);
+        this.showStatus(html, 'success', true);
       } else {
-        this.showStatus('Нет данных для превью', 'warning');
+        this.showStatus('Нет данных', 'warning');
       }
     });
   }
@@ -212,31 +193,13 @@ class ParserPopup {
       statusEl.textContent = message;
     }
 
-    // Auto-hide after 5 seconds (except for preview)
     if (!isHtml) {
       setTimeout(() => {
         statusEl.className = 'status';
         statusEl.textContent = '';
-      }, 5000);
+      }, 4000);
     }
-  }
-
-  toggleTheme() {
-    document.body.classList.toggle('dark-theme');
-    const isDark = document.body.classList.contains('dark-theme');
-    document.getElementById('themeToggle').textContent = isDark ? '☀️' : '🌙';
-    chrome.storage.local.set({ darkTheme: isDark });
-  }
-
-  loadTheme() {
-    chrome.storage.local.get(['darkTheme'], (result) => {
-      if (result.darkTheme) {
-        document.body.classList.add('dark-theme');
-        document.getElementById('themeToggle').textContent = '☀️';
-      }
-    });
   }
 }
 
-// Initialize popup
-const popup = new ParserPopup();
+new ParserPopup();
