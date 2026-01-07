@@ -3,6 +3,7 @@
   "name": "2GIS Parser Pro",
   "description": "Продвинутый парсер контактов компаний из 2ГИС с экспортом в Excel, CSV, JSON",
   "version": "2.0.0",
+  "default_locale": "ru",
   "action": {
     "default_icon": "icon.png",
     "default_popup": "popup.html"
