@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Popup Script v2.3.2
+// 2GIS Parser Pro - Popup Script v2.3.3
 
 class ParserPopup {
   constructor() {
@@ -384,45 +384,68 @@ class ParserPopup {
           return maxPages; // fallback
         };
 
-        // Простой поиск кнопки ">" - ищем среди всех кнопок и ссылок
+        // Поиск кнопки ">" - на 2GIS это div с SVG внутри
         const findNextButton = () => {
-          // Ищем все кликабельные элементы
-          const clickables = document.querySelectorAll('button, a, [role="button"]');
+          // Метод 1: Ищем контейнер пагинации по классу _1x4k6z7
+          const paginationContainer = document.querySelector('._1x4k6z7, [class*="_1x4k6z"]');
 
-          for (const el of clickables) {
-            const text = el.textContent.trim();
+          if (paginationContainer) {
+            console.log('[2GIS Parser] Found pagination container');
 
-            // Ищем кнопку со стрелкой вправо
-            if (text === '>' || text === '›' || text === '→') {
-              // Проверяем что не disabled
-              const isDisabled = el.disabled ||
-                                 el.hasAttribute('disabled') ||
-                                 el.getAttribute('aria-disabled') === 'true' ||
-                                 el.classList.contains('disabled');
+            // Ищем все div с SVG внутри пагинации
+            const divsWithSvg = paginationContainer.querySelectorAll('div');
+            const arrowDivs = [];
 
-              if (!isDisabled) {
-                console.log('[2GIS Parser] Found next button by text:', text);
-                return el;
+            for (const div of divsWithSvg) {
+              const svg = div.querySelector('svg');
+              if (svg && div.children.length === 1) {
+                // Это div который содержит только SVG - вероятно кнопка навигации
+                arrowDivs.push(div);
+              }
+            }
+
+            console.log('[2GIS Parser] Found arrow divs:', arrowDivs.length);
+
+            // Последний div с SVG - это кнопка "вперед" (>)
+            if (arrowDivs.length >= 2) {
+              const nextBtn = arrowDivs[arrowDivs.length - 1];
+              console.log('[2GIS Parser] Found next button (last arrow div)');
+              return nextBtn;
+            }
+            if (arrowDivs.length === 1) {
+              // Только одна стрелка - проверим это ">" или "<"
+              const svg = arrowDivs[0].querySelector('svg');
+              const style = window.getComputedStyle(svg);
+              const transform = style.transform || svg.style.transform || '';
+              // rotate(-90deg) = стрелка вправо, rotate(90deg) = стрелка влево
+              if (transform.includes('-90') || transform.includes('270')) {
+                console.log('[2GIS Parser] Found next button (single arrow, rotated right)');
+                return arrowDivs[0];
               }
             }
           }
 
-          // Если не нашли по тексту, ищем по SVG стрелке
-          const svgArrows = document.querySelectorAll('svg');
-          for (const svg of svgArrows) {
-            const parent = svg.closest('button, a, [role="button"]');
-            if (parent) {
-              // Проверяем что это правая стрелка (обычно последняя в ряду кнопок)
-              const rect = parent.getBoundingClientRect();
-              const siblings = parent.parentElement?.children;
-              if (siblings && siblings.length > 1) {
-                const lastSibling = siblings[siblings.length - 1];
-                if (parent === lastSibling || parent === siblings[siblings.length - 2]) {
-                  const isDisabled = parent.disabled || parent.hasAttribute('disabled');
-                  if (!isDisabled) {
-                    console.log('[2GIS Parser] Found next button by position');
-                    return parent;
-                  }
+          // Метод 2: Ищем по классу _n5hmn94 напрямую
+          const arrowButtons = document.querySelectorAll('[class*="_n5hmn94"], [class*="arrow"], [class*="Arrow"]');
+          if (arrowButtons.length >= 2) {
+            const nextBtn = arrowButtons[arrowButtons.length - 1];
+            console.log('[2GIS Parser] Found next button by class pattern');
+            return nextBtn;
+          }
+
+          // Метод 3: Ищем любой div с SVG стрелкой в нижней части страницы
+          const allSvgs = document.querySelectorAll('svg');
+          for (const svg of allSvgs) {
+            const rect = svg.getBoundingClientRect();
+            // Пагинация обычно внизу видимой области
+            if (rect.top > 500) {
+              const parent = svg.parentElement;
+              if (parent && parent.tagName === 'DIV') {
+                const style = window.getComputedStyle(svg);
+                const transform = style.transform || '';
+                if (transform.includes('-90') || transform.includes('270')) {
+                  console.log('[2GIS Parser] Found next button by SVG position and rotation');
+                  return parent;
                 }
               }
             }
