@@ -1,0 +1,44 @@
+{
+   "clearBtn": {
+      "message": "↩️ Reset"
+   },
+   "downloadBtn": {
+      "message": "🗂 Download Table"
+   },
+   "download_error": {
+      "message": "File download error."
+   },
+   "error": {
+      "message": "Error!"
+   },
+   "error_clear_data_status": {
+      "message": "Clear error!"
+   },
+   "error_status": {
+      "message": "File generation error!"
+   },
+   "extension_description": {
+      "message": "Tool for extracting contact details, addresses, and other information from 2GIS maps"
+   },
+   "extension_name": {
+      "message": "Gis Maps Parser — 2GIS contact data extractor"
+   },
+   "instructionBtn": {
+      "message": "📗 Instructions"
+   },
+   "no_saved_items": {
+      "message": "No saved locations yet."
+   },
+   "success_clear_data_status": {
+      "message": "Data cleared!"
+   },
+   "success_status": {
+      "message": "File successfully generated!"
+   },
+   "supportBtn": {
+      "message": "💌 24/7 Support"
+   },
+   "title": {
+      "message": "Gis Maps Parser"
+   }
+}

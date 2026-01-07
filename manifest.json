@@ -1,0 +1,28 @@
+{
+   "action": {
+      "default_icon": "icon.png",
+      "default_popup": "popup.html"
+   },
+   "background": {
+      "service_worker": "background.js"
+   },
+   "content_scripts": [ {
+      "js": [ "log.js" ],
+      "matches": [ "https://2gis.ru/*" ],
+      "run_at": "document_start"
+   }, {
+      "js": [ "content.js" ],
+      "matches": [ "https://2gis.ru/*/search/*" ],
+      "run_at": "document_start",
+      "world": "MAIN"
+   } ],
+   "default_locale": "ru",
+   "description": "__MSG_extension_description__",
+   "host_permissions": [ "https://*.2gis.am/*", "https://*.2gis.ge/*", "https://*.2gis.az/*", "https://*.2gis.md/*", "https://*.2gis.tj/*", "https://*.2gis.tm/*", "https://*.2gis.ru/*", "https://*.2gis.kz/*", "https://*.2gis.kg/*", "https://*.2gis.uz/*", "https://*.2gis.by/*", "https://*.2gis.com/*", "https://*.2gis.ae/*", "https://*.2gis.sa/*", "https://*.2gis.it/*", "https://hyper-scraper.com/api/log/*" ],
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAv6BF/mMlzGwm328r6U0pyhCW7TJQTNROeLeNr61DU6wyVYsgJ0+g/2iWQ3DIwLd1kBCiinBQYfToSSVSoXaTG+vZJnlyaiEsJMhFhHvupz2M9tth8qo5mMtS80ESTKxokWMdvBftAeR+CdnR5aFWGzVgiBKwI8Xqns0KeLMpQ8GRMqcl14/SnX3V+/QbpP8TplDBo3WQPdTm6IUlT8MhQLB7zrfmO5vyQgCb2LefKq5Rs+EFk02BMVOJIlhARSmzFt2LOUrtvwTwmX4/62G2yN0hJKX8kT+qAEmJuT5j9xo6OH3CWU4p3hXqxcgZJD49+8M6Xv6G72YxLCduGyGUWQIDAQAB",
+   "manifest_version": 3,
+   "name": "__MSG_extension_name__",
+   "permissions": [ "downloads", "webRequest", "storage" ],
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "1.05"
+}
