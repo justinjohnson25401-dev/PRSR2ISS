@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Background Service Worker v2.1
+// 2GIS Parser Pro - Background Service Worker v2.2
 // Без внешней телеметрии, все данные хранятся локально
 
 importScripts('xlsx.full.min.js');
@@ -8,11 +8,57 @@ const STORAGE_KEY = 'uniqueData_2gis_parser_pro_v2';
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
+// Центры городов (lat, lon)
+const CITY_CENTERS = {
+  'Москва': { lat: 55.7558, lon: 37.6173 },
+  'Санкт-Петербург': { lat: 59.9343, lon: 30.3351 },
+  'Новосибирск': { lat: 55.0084, lon: 82.9357 },
+  'Екатеринбург': { lat: 56.8389, lon: 60.6057 },
+  'Казань': { lat: 55.7879, lon: 49.1233 },
+  'Нижний Новгород': { lat: 56.2965, lon: 43.9361 },
+  'Челябинск': { lat: 55.1644, lon: 61.4368 },
+  'Самара': { lat: 53.1959, lon: 50.1002 },
+  'Омск': { lat: 54.9885, lon: 73.3242 },
+  'Ростов-на-Дону': { lat: 47.2357, lon: 39.7015 },
+  'Уфа': { lat: 54.7388, lon: 55.9721 },
+  'Красноярск': { lat: 56.0153, lon: 92.8932 },
+  'Воронеж': { lat: 51.6720, lon: 39.1843 },
+  'Пермь': { lat: 58.0105, lon: 56.2502 },
+  'Волгоград': { lat: 48.7080, lon: 44.5133 }
+};
+
 // Городские коды (служебные номера)
 const CITY_CODES = ['495', '499', '343', '383', '381', '812', '863', '846', '831', '843', '473', '861', '351', '342', '391', '347', '862'];
 
 // =============== CRYPTO PARAMS ===============
 let cryptoParams = { h: null, g: null, salt: null };
+
+// =============== DISTANCE CALCULATION ===============
+
+// Формула Haversine для расчета расстояния между двумя точками
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+
+  const R = 6371; // Радиус Земли в км
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+  return Math.round(distance * 10) / 10; // Округляем до 0.1 км
+}
+
+// Определение зоны по расстоянию
+function getDistanceZone(distanceKm) {
+  if (distanceKm === null) return '';
+  if (distanceKm <= 5) return 'Центр';
+  if (distanceKm <= 15) return 'Срединная зона';
+  if (distanceKm <= 30) return 'Спальный район';
+  return 'Окраина';
+}
 
 // =============== PHONE NORMALIZATION ===============
 
@@ -534,18 +580,38 @@ function applyFilters(items, filters) {
 
 // =============== EXPORT FUNCTIONS ===============
 
-function formatItemsForExport(items, useMobileOnly = false) {
+function formatItemsForExport(items, useMobileOnly = false, selectedCity = 'Москва') {
+  // Получаем координаты центра выбранного города
+  const cityCenter = CITY_CENTERS[selectedCity] || CITY_CENTERS['Москва'];
+
   return items.map(item => {
     // Выбираем какие телефоны использовать
     const phones = useMobileOnly && item.mobilePhones?.length > 0
       ? item.mobilePhones
       : item.phonesNormalized || [];
 
+    // Рассчитываем расстояние от центра города
+    const distance = calculateDistance(
+      item.latitude,
+      item.longitude,
+      cityCenter.lat,
+      cityCenter.lon
+    );
+    const zone = getDistanceZone(distance);
+
+    // Добавляем город к адресу если его нет
+    let fullAddress = item.address || '';
+    if (fullAddress && !fullAddress.includes(selectedCity)) {
+      fullAddress = `${selectedCity}, ${fullAddress}`;
+    }
+
     return {
       'Название': item.name || '',
       'Категория': item.category || '',
       'Специализация': item.specialization || '',
-      'Адрес': item.address || '',
+      'Адрес': fullAddress,
+      'Расст. от центра (км)': distance !== null ? distance : '',
+      'Зона': zone,
       'Телефоны': phones.join(', '),
       'Email': (item.emails || []).join(', '),
       'Сайт': (item.urls || []).join(', '),
@@ -566,8 +632,8 @@ function formatItemsForExport(items, useMobileOnly = false) {
   });
 }
 
-async function exportToXLSX(items, useMobileOnly = false) {
-  const formatted = formatItemsForExport(items, useMobileOnly);
+async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Москва') {
+  const formatted = formatItemsForExport(items, useMobileOnly, selectedCity);
   const ws = XLSX.utils.json_to_sheet(formatted);
 
   // Получаем диапазон ячеек
@@ -603,12 +669,14 @@ async function exportToXLSX(items, useMobileOnly = false) {
     }
   }
 
-  // Set column widths
+  // Set column widths (updated for new columns)
   ws['!cols'] = [
     { wch: 25 },  // Название
     { wch: 20 },  // Категория
     { wch: 25 },  // Специализация
-    { wch: 35 },  // Адрес
+    { wch: 40 },  // Адрес (увеличено для города)
+    { wch: 18 },  // Расст. от центра (км)
+    { wch: 15 },  // Зона
     { wch: 20 },  // Телефоны
     { wch: 25 },  // Email
     { wch: 30 },  // Сайт
@@ -769,10 +837,11 @@ async function handleMessage(message, sendResponse) {
         let dataUrl, filename;
         const format = message.format || 'xlsx';
         const useMobileOnly = message.filters?.onlyMobilePhones || false;
+        const selectedCity = message.city || 'Москва';
 
         switch (format) {
           case 'xlsx':
-            dataUrl = await exportToXLSX(filtered, useMobileOnly);
+            dataUrl = await exportToXLSX(filtered, useMobileOnly, selectedCity);
             filename = `2gis_export_${Date.now()}.xlsx`;
             break;
 

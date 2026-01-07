@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Popup Script v2.1
+// 2GIS Parser Pro - Popup Script v2.2
 
 class ParserPopup {
   constructor() {
@@ -10,6 +10,7 @@ class ParserPopup {
       onlyWithSite: false,
       onlyWithTelegram: false
     };
+    this.selectedCity = 'Москва';
     this.init();
   }
 
@@ -17,16 +18,21 @@ class ParserPopup {
     document.addEventListener('DOMContentLoaded', () => {
       this.bindEvents();
       this.loadFilters();
+      this.loadCity();
       this.updateStats();
       this.startAutoUpdate();
     });
   }
 
   bindEvents() {
-    // Export buttons
+    // Export button (only XLSX now)
     document.getElementById('downloadXlsx').addEventListener('click', () => this.download('xlsx'));
-    document.getElementById('downloadCsv').addEventListener('click', () => this.download('csv'));
-    document.getElementById('downloadJson').addEventListener('click', () => this.download('json'));
+
+    // City selector
+    document.getElementById('citySelect').addEventListener('change', (e) => {
+      this.selectedCity = e.target.value;
+      this.saveCity();
+    });
 
     // Action buttons
     document.getElementById('clearBtn').addEventListener('click', () => this.clearData());
@@ -92,6 +98,19 @@ class ParserPopup {
     });
   }
 
+  saveCity() {
+    chrome.storage.local.set({ parserCity: this.selectedCity });
+  }
+
+  loadCity() {
+    chrome.storage.local.get(['parserCity'], (result) => {
+      if (result.parserCity) {
+        this.selectedCity = result.parserCity;
+        document.getElementById('citySelect').value = this.selectedCity;
+      }
+    });
+  }
+
   updateStats() {
     chrome.runtime.sendMessage({ action: 'getStats' }, (response) => {
       if (response && response.status === 'ok') {
@@ -115,7 +134,8 @@ class ParserPopup {
     chrome.runtime.sendMessage({
       action: 'download',
       format: format,
-      filters: this.filters
+      filters: this.filters,
+      city: this.selectedCity
     }, (response) => {
       if (!response) {
         this.showStatus('Ошибка соединения', 'error');
@@ -165,7 +185,7 @@ class ParserPopup {
               <br>
               <span style="color:#888;">${item.address || ''}</span>
               ${phones ? `<br>📞 ${phones}` : ''}
-              ${item.telegram ? `<br>✈️ ${item.telegramUsername || 'Telegram'}` : ''}
+              ${item.telegram ? `<br><span class="tg-icon" style="display:inline-block;width:12px;height:12px;"></span> ${item.telegramUsername || 'Telegram'}` : ''}
               ${item.rating?.ratingValue ? `<br>⭐ ${item.rating.ratingValue}` : ''}
             </div>
           `;

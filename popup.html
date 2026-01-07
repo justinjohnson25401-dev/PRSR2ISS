@@ -295,12 +295,69 @@
       margin-top: 0;
       padding-top: 0;
     }
+
+    .city-selector {
+      margin-bottom: 12px;
+    }
+
+    .city-selector select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      background: white;
+      color: var(--text);
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+
+    .city-selector select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-light);
+    }
+
+    .export-buttons.single {
+      grid-template-columns: 1fr;
+    }
+
+    .btn-export-large {
+      flex-direction: row;
+      gap: 8px;
+      padding: 14px 20px;
+    }
+
+    .btn-export-large .icon {
+      font-size: 20px;
+      margin-bottom: 0;
+    }
+
+    .btn-export-large .text {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    /* Telegram icon */
+    .tg-icon {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232196f3'%3E%3Cpath d='M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.009-1.252-.242-1.865-.442-.751-.244-1.349-.374-1.297-.789.027-.216.324-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.015 3.333-1.386 4.025-1.627 4.477-1.635.099-.002.321.023.465.141.121.1.155.234.17.331.015.098.034.321.019.495z'/%3E%3C/svg%3E");
+      background-size: contain;
+      background-repeat: no-repeat;
+      vertical-align: middle;
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>2GIS Parser Pro</h1>
-    <div class="version">v2.1.0</div>
+    <div class="version">v2.2.0</div>
   </div>
 
   <div class="stats">
@@ -325,19 +382,32 @@
   <div class="content">
     <div id="status" class="status"></div>
 
+    <div class="section-title">Город для расчета расстояния</div>
+    <div class="city-selector">
+      <select id="citySelect">
+        <option value="Москва">Москва</option>
+        <option value="Санкт-Петербург">Санкт-Петербург</option>
+        <option value="Новосибирск">Новосибирск</option>
+        <option value="Екатеринбург">Екатеринбург</option>
+        <option value="Казань">Казань</option>
+        <option value="Нижний Новгород">Нижний Новгород</option>
+        <option value="Челябинск">Челябинск</option>
+        <option value="Самара">Самара</option>
+        <option value="Омск">Омск</option>
+        <option value="Ростов-на-Дону">Ростов-на-Дону</option>
+        <option value="Уфа">Уфа</option>
+        <option value="Красноярск">Красноярск</option>
+        <option value="Воронеж">Воронеж</option>
+        <option value="Пермь">Пермь</option>
+        <option value="Волгоград">Волгоград</option>
+      </select>
+    </div>
+
     <div class="section-title">Экспорт данных</div>
-    <div class="export-buttons">
-      <button class="btn btn-export" id="downloadXlsx">
+    <div class="export-buttons single">
+      <button class="btn btn-export btn-export-large" id="downloadXlsx">
         <span class="icon">📊</span>
-        <span class="text">XLSX</span>
-      </button>
-      <button class="btn btn-export" id="downloadCsv">
-        <span class="icon">📄</span>
-        <span class="text">CSV</span>
-      </button>
-      <button class="btn btn-export" id="downloadJson">
-        <span class="icon">🔧</span>
-        <span class="text">JSON</span>
+        <span class="text">Скачать XLSX</span>
       </button>
     </div>
 
@@ -368,7 +438,7 @@
       <div class="filter-group-title">Соцсети</div>
 
       <div class="filter-row">
-        <label><span class="icon">✈️</span> С Telegram</label>
+        <label><span class="icon tg-icon"></span> С Telegram</label>
         <input type="checkbox" id="filterTelegram">
       </div>
 
