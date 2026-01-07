@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Popup Script v2.3.5
+// 2GIS Parser Pro - Popup Script v2.3.6
 
 class ParserPopup {
   constructor() {
@@ -267,13 +267,17 @@ class ParserPopup {
     statusEl.textContent = 'Запуск сбора...';
     statusEl.className = 'auto-collect-status';
 
+    // Build script as a string to avoid Chrome serialization issues
+    const scriptCode = this.buildAutoCollectScript(delay, maxPages);
+
     try {
       // Inject and execute the auto-pagination script in MAIN world
+      // Use a minimal wrapper that evals the script string
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        func: this.autoCollectScript,
-        args: [delay, maxPages],
-        world: 'MAIN'  // Run in page context to access DOM properly
+        world: 'MAIN',
+        func: function(code) { eval(code); },
+        args: [scriptCode]
       });
 
       // Start monitoring progress
@@ -362,10 +366,9 @@ class ParserPopup {
     setTimeout(checkProgress, 500);
   }
 
-  // This function runs in the context of the 2GIS page
-  autoCollectScript(delay, maxPages) {
-    // Используем eval для избежания проблем с сериализацией
-    var script = `
+  // Build the auto-collect script as a string (avoids Chrome serialization issues)
+  buildAutoCollectScript(delay, maxPages) {
+    return `
       (async function() {
         console.log('=== [2GIS Parser] Script started! ===');
         console.log('[2GIS Parser] delay:', ${delay}, 'maxPages:', ${maxPages});
@@ -461,8 +464,6 @@ class ParserPopup {
         }
       })();
     `;
-
-    eval(script);
   }
 }
 
