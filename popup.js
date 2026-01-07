@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Popup Script v2.3.4
+// 2GIS Parser Pro - Popup Script v2.3.5
 
 class ParserPopup {
   constructor() {
@@ -364,6 +364,9 @@ class ParserPopup {
 
   // This function runs in the context of the 2GIS page
   autoCollectScript(delay, maxPages) {
+    console.log('=== [2GIS Parser] Script injected! ===');
+    console.log('[2GIS Parser] delay:', delay, 'maxPages:', maxPages);
+
     // Reset state
     window.__2gisParserStop = false;
     window.__2gisParserDone = false;
@@ -371,147 +374,128 @@ class ParserPopup {
     window.__2gisParserCurrentPage = 1;
     window.__2gisParserTotalPages = '?';
 
+    console.log('[2GIS Parser] Variables initialized');
+
     async function collectAllPages() {
+      console.log('[2GIS Parser] collectAllPages() started');
+
       try {
         // Find total from "Места XXXXX" - simple text search
         const getTotalPages = () => {
-          // Ищем текст "Места" на странице
           const bodyText = document.body.innerText;
           const match = bodyText.match(/Места\s+(\d[\d\s]*)/i);
+          console.log('[2GIS Parser] getTotalPages - match:', match);
           if (match) {
             const total = parseInt(match[1].replace(/\s/g, ''));
             if (!isNaN(total) && total > 0) {
               return Math.ceil(total / 12);
             }
           }
-          return maxPages; // fallback
+          return maxPages;
         };
 
         // Поиск кнопки ">" - на 2GIS это div с SVG внутри
         const findNextButton = () => {
-          // Метод 1: Ищем контейнер пагинации по классу _1x4k6z7
-          const paginationContainer = document.querySelector('._1x4k6z7, [class*="_1x4k6z"]');
+          console.log('[2GIS Parser] findNextButton() called');
+
+          // Метод 1: Ищем контейнер пагинации по классу
+          const paginationContainer = document.querySelector('._1x4k6z7');
+          console.log('[2GIS Parser] Method 1 - _1x4k6z7:', paginationContainer);
+
+          if (!paginationContainer) {
+            // Попробуем найти по частичному совпадению
+            const allDivs = document.querySelectorAll('div[class]');
+            for (const div of allDivs) {
+              if (div.className && div.className.includes('1x4k6z')) {
+                console.log('[2GIS Parser] Found by partial class:', div.className);
+                // Используем этот контейнер
+              }
+            }
+          }
 
           if (paginationContainer) {
-            console.log('[2GIS Parser] Found pagination container');
+            console.log('[2GIS Parser] Pagination container found!');
+            console.log('[2GIS Parser] Container HTML:', paginationContainer.innerHTML.substring(0, 200));
 
-            // Ищем все div с SVG внутри пагинации
-            const divsWithSvg = paginationContainer.querySelectorAll('div');
+            // Ищем все div с SVG
+            const allDivs = paginationContainer.querySelectorAll('div');
+            console.log('[2GIS Parser] Total divs in container:', allDivs.length);
+
             const arrowDivs = [];
-
-            for (const div of divsWithSvg) {
-              const svg = div.querySelector('svg');
-              if (svg && div.children.length === 1) {
-                // Это div который содержит только SVG - вероятно кнопка навигации
+            for (const div of allDivs) {
+              const svg = div.querySelector(':scope > svg');
+              if (svg) {
+                console.log('[2GIS Parser] Found div with direct SVG child:', div.className);
                 arrowDivs.push(div);
               }
             }
 
-            console.log('[2GIS Parser] Found arrow divs:', arrowDivs.length);
+            console.log('[2GIS Parser] Arrow divs found:', arrowDivs.length);
 
-            // Последний div с SVG - это кнопка "вперед" (>)
             if (arrowDivs.length >= 2) {
               const nextBtn = arrowDivs[arrowDivs.length - 1];
-              console.log('[2GIS Parser] Found next button (last arrow div)');
+              console.log('[2GIS Parser] Using last arrow div as next button');
               return nextBtn;
             }
             if (arrowDivs.length === 1) {
-              // Только одна стрелка - проверим это ">" или "<"
-              const svg = arrowDivs[0].querySelector('svg');
-              const style = window.getComputedStyle(svg);
-              const transform = style.transform || svg.style.transform || '';
-              // rotate(-90deg) = стрелка вправо, rotate(90deg) = стрелка влево
-              if (transform.includes('-90') || transform.includes('270')) {
-                console.log('[2GIS Parser] Found next button (single arrow, rotated right)');
-                return arrowDivs[0];
-              }
+              console.log('[2GIS Parser] Only one arrow, checking rotation...');
+              return arrowDivs[0];
             }
           }
 
-          // Метод 2: Ищем по классу _n5hmn94 напрямую
-          const arrowButtons = document.querySelectorAll('[class*="_n5hmn94"], [class*="arrow"], [class*="Arrow"]');
+          // Метод 2: Ищем по классу _n5hmn94
+          const arrowButtons = document.querySelectorAll('[class*="_n5hmn94"]');
+          console.log('[2GIS Parser] Method 2 - _n5hmn94 elements:', arrowButtons.length);
+
           if (arrowButtons.length >= 2) {
-            const nextBtn = arrowButtons[arrowButtons.length - 1];
-            console.log('[2GIS Parser] Found next button by class pattern');
-            return nextBtn;
+            console.log('[2GIS Parser] Using last _n5hmn94 as next button');
+            return arrowButtons[arrowButtons.length - 1];
           }
 
-          // Метод 3: Ищем любой div с SVG стрелкой в нижней части страницы
+          // Метод 3: Ищем все SVG с rotate(-90deg)
+          console.log('[2GIS Parser] Method 3 - searching all SVGs...');
           const allSvgs = document.querySelectorAll('svg');
+          console.log('[2GIS Parser] Total SVGs on page:', allSvgs.length);
+
           for (const svg of allSvgs) {
-            const rect = svg.getBoundingClientRect();
-            // Пагинация обычно внизу видимой области
-            if (rect.top > 500) {
-              const parent = svg.parentElement;
-              if (parent && parent.tagName === 'DIV') {
-                const style = window.getComputedStyle(svg);
-                const transform = style.transform || '';
-                if (transform.includes('-90') || transform.includes('270')) {
-                  console.log('[2GIS Parser] Found next button by SVG position and rotation');
-                  return parent;
-                }
-              }
+            const style = window.getComputedStyle(svg);
+            const transform = style.transform;
+            if (transform && transform !== 'none') {
+              console.log('[2GIS Parser] SVG with transform:', transform, 'parent:', svg.parentElement?.className);
             }
           }
 
-          console.log('[2GIS Parser] Next button not found');
+          console.log('[2GIS Parser] Next button NOT FOUND');
           return null;
-        };
-
-        // Получаем текущую страницу из URL или из кнопок
-        const getCurrentPage = () => {
-          // Попробуем из URL
-          const url = window.location.href;
-          const pageMatch = url.match(/[?&]page=(\d+)/);
-          if (pageMatch) {
-            return parseInt(pageMatch[1]);
-          }
-
-          // Ищем активную кнопку с номером
-          const clickables = document.querySelectorAll('button, a, [role="button"]');
-          for (const el of clickables) {
-            const text = el.textContent.trim();
-            const num = parseInt(text);
-
-            if (!isNaN(num) && num >= 1 && num <= 100) {
-              // Проверяем стили - активная кнопка обычно имеет другой фон
-              const style = window.getComputedStyle(el);
-              const bg = style.backgroundColor;
-
-              // Если фон не прозрачный и не белый - вероятно это активная кнопка
-              if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent' &&
-                  bg !== 'rgb(255, 255, 255)' && bg !== 'white') {
-                console.log('[2GIS Parser] Found current page:', num, 'bg:', bg);
-                return num;
-              }
-            }
-          }
-
-          return window.__2gisParserCurrentPage || 1;
         };
 
         let totalPages = getTotalPages();
         window.__2gisParserTotalPages = Math.min(totalPages, maxPages);
-        let currentPage = getCurrentPage();
+
+        console.log('[2GIS Parser] Total pages:', totalPages);
+        console.log('[2GIS Parser] Starting collection loop...');
+
+        let currentPage = 1;
         window.__2gisParserCurrentPage = currentPage;
-
-        console.log(`[2GIS Parser] Starting auto-collect. Total: ~${totalPages}, Max: ${maxPages}, Current: ${currentPage}`);
-
         let noButtonCount = 0;
 
         while (currentPage < maxPages && !window.__2gisParserStop) {
-          // Ждем загрузки
+          console.log(`[2GIS Parser] --- Loop iteration, page ${currentPage} ---`);
+
           await new Promise(r => setTimeout(r, delay));
 
-          if (window.__2gisParserStop) break;
+          if (window.__2gisParserStop) {
+            console.log('[2GIS Parser] Stop signal received');
+            break;
+          }
 
           const nextBtn = findNextButton();
 
           if (!nextBtn) {
             noButtonCount++;
-            console.log(`[2GIS Parser] Next button not found, attempt ${noButtonCount}`);
+            console.log(`[2GIS Parser] No button, attempt ${noButtonCount}/3`);
             if (noButtonCount >= 3) {
-              console.log('[2GIS Parser] Stopping - no next button found');
+              console.log('[2GIS Parser] Giving up - no button found');
               break;
             }
             await new Promise(r => setTimeout(r, 1000));
@@ -519,40 +503,32 @@ class ParserPopup {
           }
 
           noButtonCount = 0;
+          console.log('[2GIS Parser] Button found, clicking...');
 
-          // Прокручиваем к кнопке и кликаем
           nextBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
           await new Promise(r => setTimeout(r, 300));
 
-          console.log(`[2GIS Parser] Clicking next...`);
           nextBtn.click();
+          console.log('[2GIS Parser] Click sent!');
 
           currentPage++;
           window.__2gisParserCurrentPage = currentPage;
 
-          // Ждем обновления контента
           await new Promise(r => setTimeout(r, delay));
-
-          // Обновляем total если нужно
-          const newTotal = getTotalPages();
-          if (newTotal !== totalPages) {
-            totalPages = newTotal;
-            window.__2gisParserTotalPages = Math.min(totalPages, maxPages);
-          }
-
-          console.log(`[2GIS Parser] Page ${currentPage}/${window.__2gisParserTotalPages}`);
+          console.log(`[2GIS Parser] Now on page ${currentPage}`);
         }
 
         window.__2gisParserDone = true;
-        console.log(`[2GIS Parser] Done! Collected ${currentPage} pages`);
+        console.log(`[2GIS Parser] === DONE! Collected ${currentPage} pages ===`);
 
       } catch (error) {
-        console.error('[2GIS Parser] Error:', error);
+        console.error('[2GIS Parser] ERROR:', error);
         window.__2gisParserError = error.message;
       }
     }
 
     collectAllPages();
+    console.log('[2GIS Parser] collectAllPages() launched (async)');
   }
 }
 
