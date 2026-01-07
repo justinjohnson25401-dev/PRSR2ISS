@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Popup Script v2.3.3
+// 2GIS Parser Pro - Popup Script v2.3.4
 
 class ParserPopup {
   constructor() {
@@ -268,11 +268,12 @@ class ParserPopup {
     statusEl.className = 'auto-collect-status';
 
     try {
-      // Inject and execute the auto-pagination script
+      // Inject and execute the auto-pagination script in MAIN world
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: this.autoCollectScript,
-        args: [delay, maxPages]
+        args: [delay, maxPages],
+        world: 'MAIN'  // Run in page context to access DOM properly
       });
 
       // Start monitoring progress
@@ -300,6 +301,7 @@ class ParserPopup {
       if (tab) {
         chrome.scripting.executeScript({
           target: { tabId: tab.id },
+          world: 'MAIN',  // Same world as the auto-collect script
           func: () => {
             window.__2gisParserStop = true;
           }
@@ -317,6 +319,7 @@ class ParserPopup {
 
       chrome.scripting.executeScript({
         target: { tabId: tabId },
+        world: 'MAIN',  // Same world as the auto-collect script
         func: () => {
           return {
             page: window.__2gisParserCurrentPage || 0,
