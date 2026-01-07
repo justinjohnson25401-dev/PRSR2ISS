@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Popup Script v2.3.1
+// 2GIS Parser Pro - Popup Script v2.3.2
 
 class ParserPopup {
   constructor() {
@@ -370,136 +370,93 @@ class ParserPopup {
 
     async function collectAllPages() {
       try {
-        // Find total results count from "Места XXXXX"
+        // Find total from "Места XXXXX" - simple text search
         const getTotalPages = () => {
-          // Look for "Места 19371" or similar text
-          const allElements = document.querySelectorAll('*');
-          for (const el of allElements) {
-            if (el.children.length === 0) {
-              const text = el.textContent.trim();
-              const match = text.match(/Места\s+(\d+)/i);
-              if (match) {
-                const total = parseInt(match[1]);
-                return Math.ceil(total / 12);
+          // Ищем текст "Места" на странице
+          const bodyText = document.body.innerText;
+          const match = bodyText.match(/Места\s+(\d[\d\s]*)/i);
+          if (match) {
+            const total = parseInt(match[1].replace(/\s/g, ''));
+            if (!isNaN(total) && total > 0) {
+              return Math.ceil(total / 12);
+            }
+          }
+          return maxPages; // fallback
+        };
+
+        // Простой поиск кнопки ">" - ищем среди всех кнопок и ссылок
+        const findNextButton = () => {
+          // Ищем все кликабельные элементы
+          const clickables = document.querySelectorAll('button, a, [role="button"]');
+
+          for (const el of clickables) {
+            const text = el.textContent.trim();
+
+            // Ищем кнопку со стрелкой вправо
+            if (text === '>' || text === '›' || text === '→') {
+              // Проверяем что не disabled
+              const isDisabled = el.disabled ||
+                                 el.hasAttribute('disabled') ||
+                                 el.getAttribute('aria-disabled') === 'true' ||
+                                 el.classList.contains('disabled');
+
+              if (!isDisabled) {
+                console.log('[2GIS Parser] Found next button by text:', text);
+                return el;
               }
             }
           }
 
-          // Fallback: look for pagination numbers
-          const paginationContainer = document.querySelector('._1x4k50l, [class*="Pagination"], [class*="pagination"]');
-          if (paginationContainer) {
-            let maxPage = 1;
-            const buttons = paginationContainer.querySelectorAll('button, a');
-            buttons.forEach(btn => {
-              const num = parseInt(btn.textContent.trim());
-              if (!isNaN(num) && num > maxPage) maxPage = num;
-            });
-            return maxPage;
-          }
-
-          return 100; // Default fallback
-        };
-
-        // Find the pagination container and next button
-        const findNextButton = () => {
-          // 2GIS specific: pagination is usually at the bottom of the list
-          // Look for container with page numbers and arrows
-
-          // Method 1: Find by looking for sibling of number buttons
-          const paginationContainer = document.querySelector('._1x4k50l') ||
-                                      document.querySelector('[class*="Pagination"]') ||
-                                      document.querySelector('[class*="pagination"]');
-
-          if (paginationContainer) {
-            // Find all buttons/links in pagination
-            const items = paginationContainer.querySelectorAll('button, a, span[role="button"]');
-            const itemArray = Array.from(items);
-
-            // Find the "next" arrow - it's usually the last clickable element
-            // or has an arrow icon
-            for (let i = itemArray.length - 1; i >= 0; i--) {
-              const item = itemArray[i];
-              const text = item.textContent.trim();
-
-              // Check if it's the next arrow
-              if (text === '›' || text === '>' || text === '→' || text === '') {
-                // Check if it has an SVG arrow
-                const svg = item.querySelector('svg');
-                if (svg || text === '›' || text === '>') {
-                  // Check not disabled
-                  if (!item.disabled &&
-                      !item.classList.contains('disabled') &&
-                      !item.classList.contains('_1iczast') && // 2GIS disabled class
-                      item.getAttribute('aria-disabled') !== 'true' &&
-                      !item.hasAttribute('disabled')) {
-                    return item;
+          // Если не нашли по тексту, ищем по SVG стрелке
+          const svgArrows = document.querySelectorAll('svg');
+          for (const svg of svgArrows) {
+            const parent = svg.closest('button, a, [role="button"]');
+            if (parent) {
+              // Проверяем что это правая стрелка (обычно последняя в ряду кнопок)
+              const rect = parent.getBoundingClientRect();
+              const siblings = parent.parentElement?.children;
+              if (siblings && siblings.length > 1) {
+                const lastSibling = siblings[siblings.length - 1];
+                if (parent === lastSibling || parent === siblings[siblings.length - 2]) {
+                  const isDisabled = parent.disabled || parent.hasAttribute('disabled');
+                  if (!isDisabled) {
+                    console.log('[2GIS Parser] Found next button by position');
+                    return parent;
                   }
                 }
               }
             }
           }
 
-          // Method 2: Direct search for arrow button
-          const arrowSelectors = [
-            'button svg[class*="arrow"]',
-            '[class*="pagination"] button:last-child:not([disabled])',
-            '[class*="pagination"] a:last-child:not([disabled])',
-            'button[aria-label*="next"]',
-            'button[aria-label*="следующ"]',
-            'a[aria-label*="next"]',
-            'a[aria-label*="следующ"]'
-          ];
-
-          for (const selector of arrowSelectors) {
-            try {
-              const el = document.querySelector(selector);
-              if (el) {
-                const btn = el.closest('button') || el.closest('a') || el;
-                if (!btn.disabled && !btn.classList.contains('disabled')) {
-                  return btn;
-                }
-              }
-            } catch (e) {}
-          }
-
-          // Method 3: Look at the scroll panel for the list and find pagination
-          const scrollPanel = document.querySelector('[class*="searchResults"], [class*="SearchResult"]');
-          if (scrollPanel) {
-            const pagination = scrollPanel.querySelector('[class*="pagination"], [class*="Pagination"]');
-            if (pagination) {
-              const lastBtn = pagination.querySelector('button:last-of-type, a:last-of-type');
-              if (lastBtn && !lastBtn.disabled) return lastBtn;
-            }
-          }
-
+          console.log('[2GIS Parser] Next button not found');
           return null;
         };
 
-        // Get current page from active button
+        // Получаем текущую страницу из URL или из кнопок
         const getCurrentPage = () => {
-          const paginationContainer = document.querySelector('._1x4k50l') ||
-                                      document.querySelector('[class*="Pagination"]') ||
-                                      document.querySelector('[class*="pagination"]');
+          // Попробуем из URL
+          const url = window.location.href;
+          const pageMatch = url.match(/[?&]page=(\d+)/);
+          if (pageMatch) {
+            return parseInt(pageMatch[1]);
+          }
 
-          if (paginationContainer) {
-            // Find active/current button
-            const activeBtn = paginationContainer.querySelector('[class*="_selected"], [class*="active"], [class*="_current"], [aria-current="page"]');
-            if (activeBtn) {
-              const num = parseInt(activeBtn.textContent.trim());
-              if (!isNaN(num)) return num;
-            }
+          // Ищем активную кнопку с номером
+          const clickables = document.querySelectorAll('button, a, [role="button"]');
+          for (const el of clickables) {
+            const text = el.textContent.trim();
+            const num = parseInt(text);
 
-            // Alternative: find button with different styling
-            const buttons = paginationContainer.querySelectorAll('button, a');
-            for (const btn of buttons) {
-              const num = parseInt(btn.textContent.trim());
-              if (!isNaN(num)) {
-                // Check if this button looks "selected" (has different background, etc)
-                const style = window.getComputedStyle(btn);
-                if (style.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
-                    style.backgroundColor !== 'transparent') {
-                  return num;
-                }
+            if (!isNaN(num) && num >= 1 && num <= 100) {
+              // Проверяем стили - активная кнопка обычно имеет другой фон
+              const style = window.getComputedStyle(el);
+              const bg = style.backgroundColor;
+
+              // Если фон не прозрачный и не белый - вероятно это активная кнопка
+              if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent' &&
+                  bg !== 'rgb(255, 255, 255)' && bg !== 'white') {
+                console.log('[2GIS Parser] Found current page:', num, 'bg:', bg);
+                return num;
               }
             }
           }
@@ -512,13 +469,12 @@ class ParserPopup {
         let currentPage = getCurrentPage();
         window.__2gisParserCurrentPage = currentPage;
 
-        console.log(`[2GIS Parser] Starting auto-collect. Total pages: ~${totalPages}, Max: ${maxPages}, Current: ${currentPage}`);
+        console.log(`[2GIS Parser] Starting auto-collect. Total: ~${totalPages}, Max: ${maxPages}, Current: ${currentPage}`);
 
-        let attempts = 0;
-        const maxAttempts = 3;
+        let noButtonCount = 0;
 
         while (currentPage < maxPages && !window.__2gisParserStop) {
-          // Wait for page to load
+          // Ждем загрузки
           await new Promise(r => setTimeout(r, delay));
 
           if (window.__2gisParserStop) break;
@@ -526,49 +482,46 @@ class ParserPopup {
           const nextBtn = findNextButton();
 
           if (!nextBtn) {
-            attempts++;
-            console.log(`[2GIS Parser] Next button not found, attempt ${attempts}/${maxAttempts}`);
-            if (attempts >= maxAttempts) {
-              console.log('[2GIS Parser] No more pages or pagination not found');
+            noButtonCount++;
+            console.log(`[2GIS Parser] Next button not found, attempt ${noButtonCount}`);
+            if (noButtonCount >= 3) {
+              console.log('[2GIS Parser] Stopping - no next button found');
               break;
             }
             await new Promise(r => setTimeout(r, 1000));
             continue;
           }
 
-          attempts = 0;
+          noButtonCount = 0;
 
-          // Scroll next button into view and click
+          // Прокручиваем к кнопке и кликаем
           nextBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
           await new Promise(r => setTimeout(r, 300));
 
-          console.log(`[2GIS Parser] Clicking next button...`);
+          console.log(`[2GIS Parser] Clicking next...`);
           nextBtn.click();
 
-          // Wait for content to update
-          await new Promise(r => setTimeout(r, delay));
-
-          const newPage = getCurrentPage();
-          if (newPage > currentPage) {
-            currentPage = newPage;
-          } else {
-            // Page didn't change based on selector, increment manually
-            currentPage++;
-          }
+          currentPage++;
           window.__2gisParserCurrentPage = currentPage;
 
-          // Update total if it changed
-          totalPages = getTotalPages();
-          window.__2gisParserTotalPages = Math.min(totalPages, maxPages);
+          // Ждем обновления контента
+          await new Promise(r => setTimeout(r, delay));
 
-          console.log(`[2GIS Parser] Now on page ${currentPage}/${window.__2gisParserTotalPages}`);
+          // Обновляем total если нужно
+          const newTotal = getTotalPages();
+          if (newTotal !== totalPages) {
+            totalPages = newTotal;
+            window.__2gisParserTotalPages = Math.min(totalPages, maxPages);
+          }
+
+          console.log(`[2GIS Parser] Page ${currentPage}/${window.__2gisParserTotalPages}`);
         }
 
         window.__2gisParserDone = true;
-        console.log(`[2GIS Parser] Auto-collect finished. Pages collected: ${currentPage}`);
+        console.log(`[2GIS Parser] Done! Collected ${currentPage} pages`);
 
       } catch (error) {
-        console.error('[2GIS Parser] Auto-collect error:', error);
+        console.error('[2GIS Parser] Error:', error);
         window.__2gisParserError = error.message;
       }
     }
