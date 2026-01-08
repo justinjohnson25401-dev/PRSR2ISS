@@ -1,7 +1,8 @@
-// 2GIS Parser Pro - Background Service Worker v2.3.8
+// 2GIS Parser Pro - Background Service Worker v2.4.0
 // Без внешней телеметрии, все данные хранятся локально
 
-importScripts('xlsx.full.min.js');
+// xlsx-js-style for styled Excel export
+importScripts('xlsx-js-style.min.js');
 
 // =============== CONSTANTS ===============
 const STORAGE_KEY = 'uniqueData_2gis_parser_pro_v2';
@@ -714,6 +715,71 @@ const ZONE_COLORS = {
   'Окраина': 'FFEBEB'         // Light red
 };
 
+// =============== STYLE DEFINITIONS ===============
+
+// Common border style
+const BORDER_STYLE = {
+  top: { style: 'thin', color: { rgb: 'CCCCCC' } },
+  bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
+  left: { style: 'thin', color: { rgb: 'CCCCCC' } },
+  right: { style: 'thin', color: { rgb: 'CCCCCC' } }
+};
+
+// Style for statistics row (row 1)
+const STATS_STYLE = {
+  font: { sz: 11, color: { rgb: '666666' } },
+  alignment: { horizontal: 'left', vertical: 'center' }
+};
+
+// Style for header row (row 2)
+const HEADER_STYLE = {
+  font: { bold: true, sz: 11, color: { rgb: '000000' } },
+  fill: { fgColor: { rgb: 'D3D3D3' } },
+  alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+  border: BORDER_STYLE
+};
+
+// Base style for data cells
+const DATA_STYLE_BASE = {
+  font: { sz: 10 },
+  alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+  border: BORDER_STYLE
+};
+
+// Style for numeric cells (right aligned)
+const DATA_STYLE_NUMBER = {
+  font: { sz: 10 },
+  alignment: { horizontal: 'right', vertical: 'center' },
+  border: BORDER_STYLE
+};
+
+// Zone-specific styles
+const ZONE_STYLES = {
+  'Центр': {
+    ...DATA_STYLE_BASE,
+    fill: { fgColor: { rgb: 'E8F4F8' } }
+  },
+  'Срединная зона': {
+    ...DATA_STYLE_BASE,
+    fill: { fgColor: { rgb: 'F0F8E8' } }
+  },
+  'Спальный район': {
+    ...DATA_STYLE_BASE,
+    fill: { fgColor: { rgb: 'FFF8E8' } }
+  },
+  'Окраина': {
+    ...DATA_STYLE_BASE,
+    fill: { fgColor: { rgb: 'FFEBEB' } }
+  }
+};
+
+// Link style (blue underlined)
+const LINK_STYLE = {
+  font: { sz: 10, color: { rgb: '0066CC' }, underline: true },
+  alignment: { horizontal: 'left', vertical: 'center' },
+  border: BORDER_STYLE
+};
+
 async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Москва') {
   const formatted = formatItemsForExport(items, useMobileOnly, selectedCity);
 
@@ -728,10 +794,10 @@ async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Мос
   // Get headers
   const headers = Object.keys(formatted[0]);
 
-  // Create worksheet with stats row first
+  // Create worksheet data
   const wsData = [];
 
-  // Row 1: Statistics (merged across all columns later)
+  // Row 1: Statistics
   const statsRow = [statsText];
   for (let i = 1; i < headers.length; i++) {
     statsRow.push('');
@@ -749,88 +815,114 @@ async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Мос
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  // Merge cells for statistics row
-  ws['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }
-  ];
-
   // Find column indexes
   const colIndexes = {};
   headers.forEach((h, idx) => {
     colIndexes[h] = idx;
   });
 
-  // Define link columns
+  // Numeric columns (right aligned)
+  const numericCols = ['Расст. от центра (км)', 'Рейтинг', 'Оценок', 'Отзывов', 'Широта', 'Долгота'];
+
+  // Link columns
   const linkColumns = {
-    'Открыть в 2ГИС': { idx: colIndexes['Открыть в 2ГИС'], text: '2ГИС' },
-    'Открыть в Яндекс': { idx: colIndexes['Открыть в Яндекс'], text: 'Яндекс' },
-    'Telegram': { idx: colIndexes['Telegram'], text: 'Telegram' },
-    'VK': { idx: colIndexes['VK'], text: 'VK' },
-    'WhatsApp': { idx: colIndexes['WhatsApp'], text: 'WhatsApp' },
-    'Сайт': { idx: colIndexes['Сайт'], text: null } // keep original text
+    'Открыть в 2ГИС': '2ГИС',
+    'Открыть в Яндекс': 'Яндекс',
+    'Telegram': 'Telegram',
+    'VK': 'VK',
+    'WhatsApp': 'WhatsApp',
+    'Сайт': null
   };
 
   const zoneColIdx = colIndexes['Зона'];
-  const ratingColIdx = colIndexes['Рейтинг'];
-  const distanceColIdx = colIndexes['Расст. от центра (км)'];
 
-  // Process data rows (starting from row index 2 - after stats and header)
-  for (let row = 2; row < wsData.length; row++) {
-    // Convert URLs to hyperlinks
-    for (const [colName, colData] of Object.entries(linkColumns)) {
-      if (colData.idx === undefined || colData.idx === -1) continue;
+  // Apply styles to all cells
+  const range = XLSX.utils.decode_range(ws['!ref']);
 
-      const cellAddress = XLSX.utils.encode_cell({ r: row, c: colData.idx });
-      const cell = ws[cellAddress];
+  for (let R = range.s.r; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
 
-      if (cell && cell.v && typeof cell.v === 'string' && cell.v.startsWith('http')) {
-        const url = cell.v;
-        ws[cellAddress] = {
-          t: 's',
-          v: colData.text || url,
-          l: { Target: url }
-        };
+      if (!ws[cellAddress]) {
+        ws[cellAddress] = { t: 's', v: '' };
       }
-    }
 
-    // Apply zone coloring
-    if (zoneColIdx !== undefined) {
-      const zoneCellAddress = XLSX.utils.encode_cell({ r: row, c: zoneColIdx });
-      const zoneCell = ws[zoneCellAddress];
-      if (zoneCell && zoneCell.v && ZONE_COLORS[zoneCell.v]) {
-        // SheetJS community doesn't support cell styling, but we set data for reference
-        // The color will be visible only in xlsx-js-style or similar enhanced libraries
-        if (!ws[zoneCellAddress].s) ws[zoneCellAddress].s = {};
-        ws[zoneCellAddress].s.fill = { fgColor: { rgb: ZONE_COLORS[zoneCell.v] } };
+      // Row 0: Statistics row
+      if (R === 0) {
+        ws[cellAddress].s = STATS_STYLE;
+      }
+      // Row 1: Header row
+      else if (R === 1) {
+        ws[cellAddress].s = HEADER_STYLE;
+      }
+      // Data rows
+      else {
+        const colName = headers[C];
+        const cellValue = ws[cellAddress].v;
+
+        // Check if it's zone column - apply zone color
+        if (C === zoneColIdx && cellValue && ZONE_STYLES[cellValue]) {
+          ws[cellAddress].s = ZONE_STYLES[cellValue];
+        }
+        // Check if it's a link column with URL
+        else if (linkColumns.hasOwnProperty(colName) && cellValue && typeof cellValue === 'string' && cellValue.startsWith('http')) {
+          const url = cellValue;
+          const displayText = linkColumns[colName] || url;
+          ws[cellAddress] = {
+            t: 's',
+            v: displayText,
+            l: { Target: url },
+            s: LINK_STYLE
+          };
+        }
+        // Numeric columns
+        else if (numericCols.includes(colName)) {
+          ws[cellAddress].s = DATA_STYLE_NUMBER;
+        }
+        // Default data style
+        else {
+          ws[cellAddress].s = DATA_STYLE_BASE;
+        }
       }
     }
   }
 
-  // Set column widths (updated for new columns including "Дата сбора")
+  // Merge cells for statistics row
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }
+  ];
+
+  // Set column widths
   ws['!cols'] = [
     { wch: 25 },  // Название
     { wch: 20 },  // Категория
     { wch: 25 },  // Специализация
     { wch: 40 },  // Адрес
-    { wch: 18 },  // Расст. от центра (км)
+    { wch: 12 },  // Расст. от центра (км)
     { wch: 15 },  // Зона
-    { wch: 20 },  // Телефоны
-    { wch: 25 },  // Email
-    { wch: 30 },  // Сайт
-    { wch: 30 },  // Telegram
-    { wch: 18 },  // Telegram username
-    { wch: 30 },  // VK
-    { wch: 30 },  // WhatsApp
-    { wch: 25 },  // Прочие соцсети
+    { wch: 18 },  // Телефоны
+    { wch: 22 },  // Email
+    { wch: 25 },  // Сайт
+    { wch: 25 },  // Telegram
+    { wch: 16 },  // Telegram username
+    { wch: 25 },  // VK
+    { wch: 25 },  // WhatsApp
+    { wch: 20 },  // Прочие соцсети
     { wch: 8 },   // Рейтинг
-    { wch: 10 },  // Оценок
-    { wch: 10 },  // Отзывов
-    { wch: 22 },  // График работы
-    { wch: 12 },  // Широта
-    { wch: 12 },  // Долгота
-    { wch: 12 },  // Открыть в 2ГИС
-    { wch: 12 },  // Открыть в Яндекс
-    { wch: 12 }   // Дата сбора
+    { wch: 8 },   // Оценок
+    { wch: 8 },   // Отзывов
+    { wch: 20 },  // График работы
+    { wch: 10 },  // Широта
+    { wch: 10 },  // Долгота
+    { wch: 10 },  // Открыть в 2ГИС
+    { wch: 10 },  // Открыть в Яндекс
+    { wch: 11 }   // Дата сбора
+  ];
+
+  // Set row heights
+  ws['!rows'] = [
+    { hpt: 20 },  // Stats row
+    { hpt: 30 }   // Header row (taller for wrapped text)
   ];
 
   const wb = XLSX.utils.book_new();

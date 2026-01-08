@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Popup Script v2.3.9
+// 2GIS Parser Pro - Popup Script v2.4.0
 
 class ParserPopup {
   constructor() {
