@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Popup Script v2.3.6
+// 2GIS Parser Pro - Popup Script v2.3.7
 
 class ParserPopup {
   constructor() {
@@ -238,8 +238,6 @@ class ParserPopup {
   async startAutoCollect() {
     const btn = document.getElementById('autoCollectBtn');
     const statusEl = document.getElementById('autoCollectStatus');
-    const delayInput = document.getElementById('collectDelay');
-    const maxPagesInput = document.getElementById('maxPages');
 
     // Get current tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -261,14 +259,11 @@ class ParserPopup {
     btn.querySelector('.text').textContent = 'Остановить сбор';
     btn.querySelector('.icon').textContent = '⏹️';
 
-    const delay = parseFloat(delayInput.value) * 1000 || 2000;
-    const maxPages = parseInt(maxPagesInput.value) || 100;
-
     statusEl.textContent = 'Запуск сбора...';
     statusEl.className = 'auto-collect-status';
 
-    // Build script as a string to avoid Chrome serialization issues
-    const scriptCode = this.buildAutoCollectScript(delay, maxPages);
+    // Build script as a string - FIXED 10 second delay
+    const scriptCode = this.buildAutoCollectScript();
 
     try {
       // Inject and execute the auto-pagination script in MAIN world
@@ -367,11 +362,12 @@ class ParserPopup {
   }
 
   // Build the auto-collect script as a string (avoids Chrome serialization issues)
-  buildAutoCollectScript(delay, maxPages) {
+  // FIXED: Always 10 seconds delay between pages
+  buildAutoCollectScript() {
     return `
       (async function() {
         console.log('=== [2GIS Parser] Script started! ===');
-        console.log('[2GIS Parser] delay:', ${delay}, 'maxPages:', ${maxPages});
+        console.log('[2GIS Parser] FIXED delay: 10 seconds between pages');
 
         window.__2gisParserStop = false;
         window.__2gisParserDone = false;
@@ -379,37 +375,44 @@ class ParserPopup {
         window.__2gisParserCurrentPage = 1;
         window.__2gisParserTotalPages = '?';
 
+        // FIXED: Always 10 seconds (10000ms) between page switches
+        var DELAY_MS = 10000;
+        var MAX_PAGES = 9999;
+
         try {
           // Получаем общее количество
           var bodyText = document.body.innerText;
           var match = bodyText.match(/Места\\s+(\\d[\\d\\s]*)/i);
           console.log('[2GIS Parser] Match:', match);
 
-          var totalItems = ${maxPages} * 12;
+          var totalItems = MAX_PAGES * 12;
           if (match) {
             totalItems = parseInt(match[1].replace(/\\s/g, ''));
           }
           var totalPages = Math.ceil(totalItems / 12);
-          window.__2gisParserTotalPages = Math.min(totalPages, ${maxPages});
-          console.log('[2GIS Parser] Total pages:', window.__2gisParserTotalPages);
+          window.__2gisParserTotalPages = totalPages;
+          console.log('[2GIS Parser] Total pages:', totalPages);
 
           var currentPage = 1;
           window.__2gisParserCurrentPage = currentPage;
           var noButtonCount = 0;
 
-          while (currentPage < ${maxPages} && !window.__2gisParserStop) {
-            console.log('[2GIS Parser] Page', currentPage);
+          while (!window.__2gisParserStop) {
+            console.log('[2GIS Parser] Page', currentPage, '- waiting 10 seconds...');
 
-            await new Promise(function(r) { setTimeout(r, ${delay}); });
+            // FIXED: Always wait exactly 10 seconds
+            await new Promise(function(r) { setTimeout(r, DELAY_MS); });
 
-            if (window.__2gisParserStop) break;
+            if (window.__2gisParserStop) {
+              console.log('[2GIS Parser] STOPPED by user');
+              break;
+            }
 
             // Ищем кнопку ">"
             var nextBtn = null;
 
             // Метод 1: по классу пагинации
             var container = document.querySelector('._1x4k6z7');
-            console.log('[2GIS Parser] Container:', container);
 
             if (container) {
               var divs = container.querySelectorAll('div');
@@ -429,7 +432,6 @@ class ParserPopup {
             // Метод 2: по классу _n5hmn94
             if (!nextBtn) {
               var btns = document.querySelectorAll('[class*="_n5hmn94"]');
-              console.log('[2GIS Parser] _n5hmn94 buttons:', btns.length);
               if (btns.length >= 2) {
                 nextBtn = btns[btns.length - 1];
               }
@@ -437,17 +439,19 @@ class ParserPopup {
 
             if (!nextBtn) {
               noButtonCount++;
-              console.log('[2GIS Parser] No button, attempt', noButtonCount);
-              if (noButtonCount >= 3) break;
-              await new Promise(function(r) { setTimeout(r, 1000); });
+              console.log('[2GIS Parser] No button found, attempt', noButtonCount);
+              if (noButtonCount >= 3) {
+                console.log('[2GIS Parser] No more pages - DONE');
+                break;
+              }
               continue;
             }
 
             noButtonCount = 0;
-            console.log('[2GIS Parser] Clicking button...');
+            console.log('[2GIS Parser] Clicking next page button...');
 
             nextBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            await new Promise(function(r) { setTimeout(r, 300); });
+            await new Promise(function(r) { setTimeout(r, 500); });
             nextBtn.click();
 
             currentPage++;
@@ -456,7 +460,7 @@ class ParserPopup {
           }
 
           window.__2gisParserDone = true;
-          console.log('[2GIS Parser] === DONE! Pages:', currentPage, '===');
+          console.log('[2GIS Parser] === DONE! Total pages collected:', currentPage, '===');
 
         } catch (err) {
           console.error('[2GIS Parser] ERROR:', err);
