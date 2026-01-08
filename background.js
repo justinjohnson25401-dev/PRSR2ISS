@@ -824,14 +824,14 @@ async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Мос
   // Numeric columns (right aligned)
   const numericCols = ['Расст. от центра (км)', 'Рейтинг', 'Оценок', 'Отзывов', 'Широта', 'Долгота'];
 
-  // Link columns
+  // Link columns with emoji icons (clickable)
   const linkColumns = {
-    'Открыть в 2ГИС': '2ГИС',
-    'Открыть в Яндекс': 'Яндекс',
-    'Telegram': 'Telegram',
-    'VK': 'VK',
-    'WhatsApp': 'WhatsApp',
-    'Сайт': null
+    'Открыть в 2ГИС': '🗺️',      // Map icon for 2GIS
+    'Открыть в Яндекс': '🔍',     // Search icon for Yandex
+    'Telegram': '✈️',             // Paper plane for Telegram
+    'VK': '💙',                   // Blue heart for VK
+    'WhatsApp': '💬',             // Speech bubble for WhatsApp
+    'Сайт': '🌐'                  // Globe for website
   };
 
   const zoneColIdx = colIndexes['Зона'];
