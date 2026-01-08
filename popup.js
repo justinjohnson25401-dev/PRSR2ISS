@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Popup Script v2.3.8
+// 2GIS Parser Pro - Popup Script v2.3.9
 
 class ParserPopup {
   constructor() {
@@ -12,6 +12,7 @@ class ParserPopup {
     };
     this.selectedCity = 'Москва';
     this.isCollecting = false;
+    this.collectingTabId = null;
 
     // Export settings
     this.exportSettings = {
@@ -30,6 +31,7 @@ class ParserPopup {
       this.loadFilters();
       this.loadCity();
       this.loadExportSettings();
+      this.checkCollectingState(); // Проверяем состояние сбора при открытии
       this.updateStats();
       this.startAutoUpdate();
     });
@@ -303,6 +305,89 @@ class ParserPopup {
 
   // =============== AUTO-COLLECT FUNCTIONALITY ===============
 
+  // Проверяем состояние сбора при открытии popup
+  async checkCollectingState() {
+    const result = await chrome.storage.local.get(['parserCollecting']);
+
+    if (result.parserCollecting && result.parserCollecting.active) {
+      const { tabId } = result.parserCollecting;
+
+      // Проверяем, существует ли еще эта вкладка и работает ли скрипт
+      try {
+        const scriptResult = await chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          world: 'MAIN',
+          func: () => {
+            return {
+              done: window.__2gisParserDone || false,
+              page: window.__2gisParserCurrentPage || 0,
+              total: window.__2gisParserTotalPages || '?',
+              error: window.__2gisParserError || null
+            };
+          }
+        });
+
+        if (scriptResult && scriptResult[0]) {
+          const { done, page, total, error } = scriptResult[0].result;
+
+          if (!done && !error) {
+            // Сбор все еще идет - восстанавливаем UI
+            this.isCollecting = true;
+            this.collectingTabId = tabId;
+            this.updateCollectingUI(true);
+
+            const statusEl = document.getElementById('autoCollectStatus');
+            statusEl.textContent = `Страница ${page} из ${total}...`;
+            statusEl.className = 'auto-collect-status';
+
+            // Возобновляем мониторинг
+            this.monitorProgress(tabId, statusEl);
+            return;
+          }
+        }
+      } catch (e) {
+        // Вкладка закрыта или скрипт не работает
+        console.log('[Popup] Tab closed or script not running');
+      }
+
+      // Сбор завершен или ошибка - очищаем состояние
+      this.clearCollectingState();
+    }
+  }
+
+  // Сохраняем состояние сбора
+  saveCollectingState(tabId) {
+    chrome.storage.local.set({
+      parserCollecting: {
+        active: true,
+        tabId: tabId,
+        startTime: Date.now()
+      }
+    });
+  }
+
+  // Очищаем состояние сбора
+  clearCollectingState() {
+    chrome.storage.local.remove(['parserCollecting']);
+    this.isCollecting = false;
+    this.collectingTabId = null;
+    this.updateCollectingUI(false);
+  }
+
+  // Обновляем UI кнопки сбора
+  updateCollectingUI(collecting) {
+    const btn = document.getElementById('autoCollectBtn');
+    if (collecting) {
+      btn.classList.add('collecting');
+      btn.querySelector('.text').textContent = 'Остановить сбор';
+      btn.querySelector('.icon').textContent = '⏹️';
+    } else {
+      btn.classList.remove('collecting');
+      btn.querySelector('.text').textContent = 'Собрать все страницы';
+      btn.querySelector('.icon').textContent = '🔄';
+    }
+  }
+
   async toggleAutoCollect() {
     if (this.isCollecting) {
       this.stopAutoCollect();
@@ -331,9 +416,11 @@ class ParserPopup {
     }
 
     this.isCollecting = true;
-    btn.classList.add('collecting');
-    btn.querySelector('.text').textContent = 'Остановить сбор';
-    btn.querySelector('.icon').textContent = '⏹️';
+    this.collectingTabId = tab.id;
+    this.updateCollectingUI(true);
+
+    // Сохраняем состояние сбора
+    this.saveCollectingState(tab.id);
 
     statusEl.textContent = 'Запуск сбора...';
     statusEl.className = 'auto-collect-status';
@@ -358,31 +445,41 @@ class ParserPopup {
       console.error('Auto-collect error:', error);
       statusEl.textContent = 'Ошибка: ' + error.message;
       statusEl.className = 'auto-collect-status error';
-      this.stopAutoCollect();
+      this.clearCollectingState();
     }
   }
 
   stopAutoCollect() {
-    const btn = document.getElementById('autoCollectBtn');
     const statusEl = document.getElementById('autoCollectStatus');
 
-    this.isCollecting = false;
-    btn.classList.remove('collecting');
-    btn.querySelector('.text').textContent = 'Собрать все страницы';
-    btn.querySelector('.icon').textContent = '🔄';
+    // Send stop signal to the page - используем сохраненный tabId или текущую вкладку
+    const tabIdToStop = this.collectingTabId;
 
-    // Send stop signal to the page
-    chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-      if (tab) {
-        chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          world: 'MAIN',  // Same world as the auto-collect script
-          func: () => {
-            window.__2gisParserStop = true;
-          }
-        }).catch(() => {});
-      }
-    });
+    if (tabIdToStop) {
+      chrome.scripting.executeScript({
+        target: { tabId: tabIdToStop },
+        world: 'MAIN',
+        func: () => {
+          window.__2gisParserStop = true;
+        }
+      }).catch(() => {});
+    } else {
+      // Fallback: отправляем в текущую вкладку
+      chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+        if (tab) {
+          chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            world: 'MAIN',
+            func: () => {
+              window.__2gisParserStop = true;
+            }
+          }).catch(() => {});
+        }
+      });
+    }
+
+    // Очищаем состояние
+    this.clearCollectingState();
 
     statusEl.textContent = 'Сбор остановлен';
     statusEl.className = 'auto-collect-status';
@@ -394,7 +491,7 @@ class ParserPopup {
 
       chrome.scripting.executeScript({
         target: { tabId: tabId },
-        world: 'MAIN',  // Same world as the auto-collect script
+        world: 'MAIN',
         func: () => {
           return {
             page: window.__2gisParserCurrentPage || 0,
@@ -411,14 +508,14 @@ class ParserPopup {
         if (error) {
           statusEl.textContent = error;
           statusEl.className = 'auto-collect-status error';
-          this.stopAutoCollect();
+          this.clearCollectingState();
           return;
         }
 
         if (done) {
           statusEl.textContent = `Готово! Собрано ${page} страниц`;
           statusEl.className = 'auto-collect-status success';
-          this.stopAutoCollect();
+          this.clearCollectingState();
           this.updateStats();
           return;
         }
