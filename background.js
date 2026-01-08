@@ -892,6 +892,12 @@ async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Мос
     { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }
   ];
 
+  // Add autofilter to header row (row 1) - enables sorting by any column
+  // When user sorts, entire row moves together (not just one column)
+  const lastCol = XLSX.utils.encode_col(headers.length - 1);
+  const lastRow = formatted.length + 2; // +1 for stats row, +1 for header row
+  ws['!autofilter'] = { ref: `A2:${lastCol}${lastRow}` };
+
   // Set column widths
   ws['!cols'] = [
     { wch: 25 },  // Название
