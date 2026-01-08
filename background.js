@@ -662,24 +662,24 @@ function formatItemsForExport(items, useMobileOnly = false, selectedCity = 'Мо
       'Категория': item.category || '',
       'Специализация': item.specialization || '',
       'Адрес': fullAddress,
-      'Расст. от центра (км)': distance !== null ? distance : '',
-      'Зона': zone,
       'Телефоны': phones.join(', '),
       'Email': (item.emails || []).join(', '),
       'Сайт': (item.urls || []).join(', '),
+      'График работы': item.workingTimeText || '',
       'Telegram': item.telegram || '',
       'Telegram username': item.telegramUsername || '',
       'VK': item.vk || '',
       'WhatsApp': item.whatsapp || '',
+      'Открыть в 2ГИС': item.link2GIS || '',
+      'Открыть в Яндекс': item.linkYandex || '',
       'Прочие соцсети': (item.otherSocial || []).join(', '),
       'Рейтинг': item.rating?.ratingValue || '',
       'Оценок': item.rating?.ratingCount || '',
       'Отзывов': item.rating?.reviewCount || '',
-      'График работы': item.workingTimeText || '',
+      'Расст. от центра (км)': distance !== null ? distance : '',
+      'Зона': zone,
       'Широта': item.latitude || '',
       'Долгота': item.longitude || '',
-      'Открыть в 2ГИС': item.link2GIS || '',
-      'Открыть в Яндекс': item.linkYandex || '',
       'Дата сбора': collectDate
     };
   });
@@ -717,66 +717,110 @@ const ZONE_COLORS = {
 
 // =============== STYLE DEFINITIONS ===============
 
-// Common border style
+// Common border style - thin gray borders
 const BORDER_STYLE = {
-  top: { style: 'thin', color: { rgb: 'CCCCCC' } },
-  bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
-  left: { style: 'thin', color: { rgb: 'CCCCCC' } },
-  right: { style: 'thin', color: { rgb: 'CCCCCC' } }
+  top: { style: 'thin', color: { rgb: 'B0B0B0' } },
+  bottom: { style: 'thin', color: { rgb: 'B0B0B0' } },
+  left: { style: 'thin', color: { rgb: 'B0B0B0' } },
+  right: { style: 'thin', color: { rgb: 'B0B0B0' } }
 };
 
-// Style for statistics row (row 1)
+// Style for statistics row (row 1) - info banner
 const STATS_STYLE = {
-  font: { sz: 11, color: { rgb: '666666' } },
-  alignment: { horizontal: 'left', vertical: 'center' }
+  font: { bold: true, sz: 11, color: { rgb: '1F4E79' } },
+  fill: { fgColor: { rgb: 'DEEAF6' } },
+  alignment: { horizontal: 'left', vertical: 'center' },
+  border: {
+    bottom: { style: 'medium', color: { rgb: '5B9BD5' } }
+  }
 };
 
-// Style for header row (row 2)
+// Style for header row (row 2) - dark blue professional header
 const HEADER_STYLE = {
-  font: { bold: true, sz: 11, color: { rgb: '000000' } },
-  fill: { fgColor: { rgb: 'D3D3D3' } },
+  font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+  fill: { fgColor: { rgb: '4472C4' } },
   alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+  border: {
+    top: { style: 'thin', color: { rgb: '2F5496' } },
+    bottom: { style: 'thin', color: { rgb: '2F5496' } },
+    left: { style: 'thin', color: { rgb: '2F5496' } },
+    right: { style: 'thin', color: { rgb: '2F5496' } }
+  }
+};
+
+// Base style for data cells - clean white with borders
+const DATA_STYLE_BASE = {
+  font: { sz: 10, name: 'Calibri' },
+  fill: { fgColor: { rgb: 'FFFFFF' } },
+  alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
   border: BORDER_STYLE
 };
 
-// Base style for data cells
-const DATA_STYLE_BASE = {
-  font: { sz: 10 },
+// Alternating row style (light blue tint)
+const DATA_STYLE_ALT = {
+  font: { sz: 10, name: 'Calibri' },
+  fill: { fgColor: { rgb: 'D6DCE5' } },
   alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
   border: BORDER_STYLE
 };
 
 // Style for numeric cells (right aligned)
 const DATA_STYLE_NUMBER = {
-  font: { sz: 10 },
-  alignment: { horizontal: 'right', vertical: 'center' },
+  font: { sz: 10, name: 'Calibri' },
+  fill: { fgColor: { rgb: 'FFFFFF' } },
+  alignment: { horizontal: 'center', vertical: 'center' },
   border: BORDER_STYLE
 };
 
-// Zone-specific styles
+// Style for numeric cells (alternating)
+const DATA_STYLE_NUMBER_ALT = {
+  font: { sz: 10, name: 'Calibri' },
+  fill: { fgColor: { rgb: 'D6DCE5' } },
+  alignment: { horizontal: 'center', vertical: 'center' },
+  border: BORDER_STYLE
+};
+
+// Zone-specific styles - vibrant but professional colors
 const ZONE_STYLES = {
   'Центр': {
-    ...DATA_STYLE_BASE,
-    fill: { fgColor: { rgb: 'E8F4F8' } }
+    font: { sz: 10, bold: true, color: { rgb: '1F4E79' } },
+    fill: { fgColor: { rgb: 'BDD7EE' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: BORDER_STYLE
   },
   'Срединная зона': {
-    ...DATA_STYLE_BASE,
-    fill: { fgColor: { rgb: 'F0F8E8' } }
+    font: { sz: 10, bold: true, color: { rgb: '375623' } },
+    fill: { fgColor: { rgb: 'C6EFCE' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: BORDER_STYLE
   },
   'Спальный район': {
-    ...DATA_STYLE_BASE,
-    fill: { fgColor: { rgb: 'FFF8E8' } }
+    font: { sz: 10, bold: true, color: { rgb: '7F6000' } },
+    fill: { fgColor: { rgb: 'FFE699' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: BORDER_STYLE
   },
   'Окраина': {
-    ...DATA_STYLE_BASE,
-    fill: { fgColor: { rgb: 'FFEBEB' } }
+    font: { sz: 10, bold: true, color: { rgb: '9C0006' } },
+    fill: { fgColor: { rgb: 'FFC7CE' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: BORDER_STYLE
   }
 };
 
-// Link style (blue underlined)
+// Link style (blue, centered for emoji)
 const LINK_STYLE = {
-  font: { sz: 10, color: { rgb: '0066CC' }, underline: true },
-  alignment: { horizontal: 'left', vertical: 'center' },
+  font: { sz: 12, color: { rgb: '0563C1' } },
+  fill: { fgColor: { rgb: 'FFFFFF' } },
+  alignment: { horizontal: 'center', vertical: 'center' },
+  border: BORDER_STYLE
+};
+
+// Link style for alternating rows
+const LINK_STYLE_ALT = {
+  font: { sz: 12, color: { rgb: '0563C1' } },
+  fill: { fgColor: { rgb: 'D6DCE5' } },
+  alignment: { horizontal: 'center', vertical: 'center' },
   border: BORDER_STYLE
 };
 
@@ -855,12 +899,13 @@ async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Мос
       else if (R === 1) {
         ws[cellAddress].s = HEADER_STYLE;
       }
-      // Data rows
+      // Data rows (with alternating colors)
       else {
         const colName = headers[C];
         const cellValue = ws[cellAddress].v;
+        const isAltRow = (R % 2 === 0); // Alternating rows (0-indexed, so even rows after header)
 
-        // Check if it's zone column - apply zone color
+        // Check if it's zone column - apply zone color (always stands out)
         if (C === zoneColIdx && cellValue && ZONE_STYLES[cellValue]) {
           ws[cellAddress].s = ZONE_STYLES[cellValue];
         }
@@ -872,16 +917,16 @@ async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Мос
             t: 's',
             v: displayText,
             l: { Target: url },
-            s: LINK_STYLE
+            s: isAltRow ? LINK_STYLE_ALT : LINK_STYLE
           };
         }
-        // Numeric columns
+        // Numeric columns (centered)
         else if (numericCols.includes(colName)) {
-          ws[cellAddress].s = DATA_STYLE_NUMBER;
+          ws[cellAddress].s = isAltRow ? DATA_STYLE_NUMBER_ALT : DATA_STYLE_NUMBER;
         }
         // Default data style
         else {
-          ws[cellAddress].s = DATA_STYLE_BASE;
+          ws[cellAddress].s = isAltRow ? DATA_STYLE_ALT : DATA_STYLE_BASE;
         }
       }
     }
@@ -898,30 +943,30 @@ async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Мос
   const lastRow = formatted.length + 2; // +1 for stats row, +1 for header row
   ws['!autofilter'] = { ref: `A2:${lastCol}${lastRow}` };
 
-  // Set column widths
+  // Set column widths (matching new column order)
   ws['!cols'] = [
-    { wch: 25 },  // Название
-    { wch: 20 },  // Категория
-    { wch: 25 },  // Специализация
-    { wch: 40 },  // Адрес
-    { wch: 12 },  // Расст. от центра (км)
-    { wch: 15 },  // Зона
-    { wch: 18 },  // Телефоны
+    { wch: 28 },  // Название
+    { wch: 18 },  // Категория
+    { wch: 22 },  // Специализация
+    { wch: 35 },  // Адрес
+    { wch: 16 },  // Телефоны
     { wch: 22 },  // Email
-    { wch: 25 },  // Сайт
-    { wch: 25 },  // Telegram
-    { wch: 16 },  // Telegram username
-    { wch: 25 },  // VK
-    { wch: 25 },  // WhatsApp
-    { wch: 20 },  // Прочие соцсети
+    { wch: 8 },   // Сайт (emoji)
+    { wch: 18 },  // График работы
+    { wch: 8 },   // Telegram (emoji)
+    { wch: 18 },  // Telegram username
+    { wch: 8 },   // VK (emoji)
+    { wch: 8 },   // WhatsApp (emoji)
+    { wch: 6 },   // Открыть в 2ГИС (emoji)
+    { wch: 6 },   // Открыть в Яндекс (emoji)
+    { wch: 18 },  // Прочие соцсети
     { wch: 8 },   // Рейтинг
     { wch: 8 },   // Оценок
     { wch: 8 },   // Отзывов
-    { wch: 20 },  // График работы
-    { wch: 10 },  // Широта
-    { wch: 10 },  // Долгота
-    { wch: 10 },  // Открыть в 2ГИС
-    { wch: 10 },  // Открыть в Яндекс
+    { wch: 10 },  // Расст. от центра (км)
+    { wch: 14 },  // Зона
+    { wch: 11 },  // Широта
+    { wch: 11 },  // Долгота
     { wch: 11 }   // Дата сбора
   ];
 
