@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Background Service Worker v2.2
+// 2GIS Parser Pro - Background Service Worker v2.3.8
 // Без внешней телеметрии, все данные хранятся локально
 
 importScripts('xlsx.full.min.js');
@@ -537,6 +537,50 @@ function extractItemData(detailItem) {
   };
 }
 
+// =============== DUPLICATE REMOVAL ===============
+
+// Remove duplicates by phone OR telegram (if same phone OR same telegram - it's duplicate)
+function removeDuplicates(items) {
+  const seenPhones = new Set();
+  const seenTelegrams = new Set();
+  const uniqueItems = [];
+
+  for (const item of items) {
+    let isDuplicate = false;
+
+    // Check phone duplicates
+    const phones = item.phonesNormalized || [];
+    for (const phone of phones) {
+      if (phone && seenPhones.has(phone)) {
+        isDuplicate = true;
+        break;
+      }
+    }
+
+    // Check telegram duplicate (if not already duplicate by phone)
+    if (!isDuplicate && item.telegramUsername) {
+      const tgUsername = item.telegramUsername.toLowerCase();
+      if (seenTelegrams.has(tgUsername)) {
+        isDuplicate = true;
+      }
+    }
+
+    if (!isDuplicate) {
+      // Add to seen sets
+      for (const phone of phones) {
+        if (phone) seenPhones.add(phone);
+      }
+      if (item.telegramUsername) {
+        seenTelegrams.add(item.telegramUsername.toLowerCase());
+      }
+      uniqueItems.push(item);
+    }
+  }
+
+  console.log(`[Background] Duplicate removal: ${items.length} -> ${uniqueItems.length} items`);
+  return uniqueItems;
+}
+
 // =============== FILTER FUNCTIONS ===============
 
 function applyFilters(items, filters) {
@@ -584,6 +628,13 @@ function formatItemsForExport(items, useMobileOnly = false, selectedCity = 'Мо
   // Получаем координаты центра выбранного города
   const cityCenter = CITY_CENTERS[selectedCity] || CITY_CENTERS['Москва'];
 
+  // Текущая дата для столбца "Дата сбора"
+  const collectDate = new Date().toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+
   return items.map(item => {
     // Выбираем какие телефоны использовать
     const phones = useMobileOnly && item.mobilePhones?.length > 0
@@ -627,54 +678,140 @@ function formatItemsForExport(items, useMobileOnly = false, selectedCity = 'Мо
       'Широта': item.latitude || '',
       'Долгота': item.longitude || '',
       'Открыть в 2ГИС': item.link2GIS || '',
-      'Открыть в Яндекс': item.linkYandex || ''
+      'Открыть в Яндекс': item.linkYandex || '',
+      'Дата сбора': collectDate
     };
   });
 }
 
-async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Москва') {
-  const formatted = formatItemsForExport(items, useMobileOnly, selectedCity);
-  const ws = XLSX.utils.json_to_sheet(formatted);
-
-  // Получаем диапазон ячеек
-  const range = XLSX.utils.decode_range(ws['!ref']);
-
-  // Находим индексы столбцов со ссылками
-  const headers = Object.keys(formatted[0] || {});
-  const linkColumns = {
-    'Открыть в 2ГИС': { idx: headers.indexOf('Открыть в 2ГИС'), text: '2ГИС' },
-    'Открыть в Яндекс': { idx: headers.indexOf('Открыть в Яндекс'), text: 'Яндекс' },
-    'Telegram': { idx: headers.indexOf('Telegram'), text: 'Telegram' },
-    'VK': { idx: headers.indexOf('VK'), text: 'VK' },
-    'WhatsApp': { idx: headers.indexOf('WhatsApp'), text: 'WhatsApp' }
+// Calculate zone statistics for a set of formatted items
+function calculateZoneStats(formattedItems) {
+  const stats = {
+    'Центр': 0,
+    'Срединная зона': 0,
+    'Спальный район': 0,
+    'Окраина': 0,
+    'Неизвестно': 0
   };
 
-  // Преобразуем URL в гиперссылки (используем свойство l для SheetJS)
-  for (let row = 1; row <= range.e.r; row++) {
+  for (const item of formattedItems) {
+    const zone = item['Зона'] || 'Неизвестно';
+    if (stats.hasOwnProperty(zone)) {
+      stats[zone]++;
+    } else {
+      stats['Неизвестно']++;
+    }
+  }
+
+  return stats;
+}
+
+// Zone colors matching demo_table.py
+const ZONE_COLORS = {
+  'Центр': 'E8F4F8',         // Light blue
+  'Срединная зона': 'F0F8E8', // Light green
+  'Спальный район': 'FFF8E8', // Light orange
+  'Окраина': 'FFEBEB'         // Light red
+};
+
+async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Москва') {
+  const formatted = formatItemsForExport(items, useMobileOnly, selectedCity);
+
+  if (formatted.length === 0) {
+    return null;
+  }
+
+  // Calculate zone statistics
+  const zoneStats = calculateZoneStats(formatted);
+  const statsText = `Статистика по зонам: Центр: ${zoneStats['Центр']} | Срединная зона: ${zoneStats['Срединная зона']} | Спальный район: ${zoneStats['Спальный район']} | Окраина: ${zoneStats['Окраина']}`;
+
+  // Get headers
+  const headers = Object.keys(formatted[0]);
+
+  // Create worksheet with stats row first
+  const wsData = [];
+
+  // Row 1: Statistics (merged across all columns later)
+  const statsRow = [statsText];
+  for (let i = 1; i < headers.length; i++) {
+    statsRow.push('');
+  }
+  wsData.push(statsRow);
+
+  // Row 2: Headers
+  wsData.push(headers);
+
+  // Data rows
+  for (const item of formatted) {
+    const row = headers.map(h => item[h] || '');
+    wsData.push(row);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Merge cells for statistics row
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }
+  ];
+
+  // Find column indexes
+  const colIndexes = {};
+  headers.forEach((h, idx) => {
+    colIndexes[h] = idx;
+  });
+
+  // Define link columns
+  const linkColumns = {
+    'Открыть в 2ГИС': { idx: colIndexes['Открыть в 2ГИС'], text: '2ГИС' },
+    'Открыть в Яндекс': { idx: colIndexes['Открыть в Яндекс'], text: 'Яндекс' },
+    'Telegram': { idx: colIndexes['Telegram'], text: 'Telegram' },
+    'VK': { idx: colIndexes['VK'], text: 'VK' },
+    'WhatsApp': { idx: colIndexes['WhatsApp'], text: 'WhatsApp' },
+    'Сайт': { idx: colIndexes['Сайт'], text: null } // keep original text
+  };
+
+  const zoneColIdx = colIndexes['Зона'];
+  const ratingColIdx = colIndexes['Рейтинг'];
+  const distanceColIdx = colIndexes['Расст. от центра (км)'];
+
+  // Process data rows (starting from row index 2 - after stats and header)
+  for (let row = 2; row < wsData.length; row++) {
+    // Convert URLs to hyperlinks
     for (const [colName, colData] of Object.entries(linkColumns)) {
-      if (colData.idx === -1) continue;
+      if (colData.idx === undefined || colData.idx === -1) continue;
 
       const cellAddress = XLSX.utils.encode_cell({ r: row, c: colData.idx });
       const cell = ws[cellAddress];
 
       if (cell && cell.v && typeof cell.v === 'string' && cell.v.startsWith('http')) {
         const url = cell.v;
-        // Используем нативную поддержку гиперссылок SheetJS
         ws[cellAddress] = {
           t: 's',
-          v: colData.text,
+          v: colData.text || url,
           l: { Target: url }
         };
       }
     }
+
+    // Apply zone coloring
+    if (zoneColIdx !== undefined) {
+      const zoneCellAddress = XLSX.utils.encode_cell({ r: row, c: zoneColIdx });
+      const zoneCell = ws[zoneCellAddress];
+      if (zoneCell && zoneCell.v && ZONE_COLORS[zoneCell.v]) {
+        // SheetJS community doesn't support cell styling, but we set data for reference
+        // The color will be visible only in xlsx-js-style or similar enhanced libraries
+        if (!ws[zoneCellAddress].s) ws[zoneCellAddress].s = {};
+        ws[zoneCellAddress].s.fill = { fgColor: { rgb: ZONE_COLORS[zoneCell.v] } };
+      }
+    }
   }
 
-  // Set column widths (updated for new columns)
+  // Set column widths (updated for new columns including "Дата сбора")
   ws['!cols'] = [
     { wch: 25 },  // Название
     { wch: 20 },  // Категория
     { wch: 25 },  // Специализация
-    { wch: 40 },  // Адрес (увеличено для города)
+    { wch: 40 },  // Адрес
     { wch: 18 },  // Расст. от центра (км)
     { wch: 15 },  // Зона
     { wch: 20 },  // Телефоны
@@ -692,7 +829,8 @@ async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Мос
     { wch: 12 },  // Широта
     { wch: 12 },  // Долгота
     { wch: 12 },  // Открыть в 2ГИС
-    { wch: 12 }   // Открыть в Яндекс
+    { wch: 12 },  // Открыть в Яндекс
+    { wch: 12 }   // Дата сбора
   ];
 
   const wb = XLSX.utils.book_new();
@@ -706,6 +844,31 @@ async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Мос
     reader.onloadend = () => resolve(reader.result);
     reader.readAsDataURL(blob);
   });
+}
+
+// Split items into chunks of packSize
+function splitIntoChunks(items, packSize) {
+  const chunks = [];
+  for (let i = 0; i < items.length; i += packSize) {
+    chunks.push(items.slice(i, i + packSize));
+  }
+  return chunks;
+}
+
+// Generate filename with category, city, packet number, and date
+function generateFilename(category, city, packetNum, totalPackets, date) {
+  // Clean up category and city for filename
+  const cleanCategory = (category || 'export').replace(/[^a-zA-Zа-яА-ЯёЁ0-9\s]/g, '').trim() || 'export';
+  const cleanCity = (city || 'city').replace(/[^a-zA-Zа-яА-ЯёЁ0-9\s]/g, '').trim() || 'city';
+
+  // Format: Category_City_PacketN_Date.xlsx or Category_City_Date.xlsx (if single file)
+  const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+
+  if (totalPackets > 1) {
+    return `${cleanCategory}_${cleanCity}_Пакет${packetNum}_${dateStr}.xlsx`;
+  } else {
+    return `${cleanCategory}_${cleanCity}_${dateStr}.xlsx`;
+  }
 }
 
 function exportToCSV(items, useMobileOnly = false) {
@@ -826,6 +989,7 @@ async function handleMessage(message, sendResponse) {
 
   switch (message.action) {
     case 'download': {
+      // Apply filters first
       let filtered = applyFilters(uniqueItems, message.filters);
 
       if (filtered.length === 0) {
@@ -833,18 +997,84 @@ async function handleMessage(message, sendResponse) {
         return;
       }
 
+      // Remove duplicates by phone OR telegram
+      filtered = removeDuplicates(filtered);
+
+      if (filtered.length === 0) {
+        sendResponse({ status: 'empty', message: 'После удаления дубликатов нет данных' });
+        return;
+      }
+
       try {
-        let dataUrl, filename;
         const format = message.format || 'xlsx';
         const useMobileOnly = message.filters?.onlyMobilePhones || false;
         const selectedCity = message.city || 'Москва';
+        const category = message.category || '';
+        const packSize = message.packSize || 1000;
+        const exportDate = new Date();
+
+        // Handle XLSX with file splitting
+        if (format === 'xlsx') {
+          // Split into chunks based on packSize
+          const chunks = splitIntoChunks(filtered, packSize);
+          const totalChunks = chunks.length;
+
+          console.log(`[Background] Exporting ${filtered.length} items in ${totalChunks} file(s)`);
+
+          let downloadedCount = 0;
+          let lastError = null;
+
+          // Download each chunk
+          for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            const dataUrl = await exportToXLSX(chunk, useMobileOnly, selectedCity);
+
+            if (!dataUrl) {
+              lastError = 'Ошибка создания файла';
+              continue;
+            }
+
+            const filename = generateFilename(category, selectedCity, i + 1, totalChunks, exportDate);
+
+            await new Promise((resolve) => {
+              chrome.downloads.download({
+                url: dataUrl,
+                filename: filename,
+                saveAs: totalChunks === 1 // Only show save dialog for single file
+              }, (downloadId) => {
+                if (!chrome.runtime.lastError) {
+                  downloadedCount++;
+                } else {
+                  lastError = chrome.runtime.lastError.message;
+                }
+                resolve();
+              });
+            });
+
+            // Small delay between downloads to avoid issues
+            if (i < chunks.length - 1) {
+              await new Promise(r => setTimeout(r, 500));
+            }
+          }
+
+          if (downloadedCount > 0) {
+            const filesText = totalChunks > 1 ? ` в ${downloadedCount} файл(ов)` : '';
+            sendResponse({
+              status: 'ok',
+              count: filtered.length,
+              files: downloadedCount,
+              message: `Экспортировано ${filtered.length} компаний${filesText}`
+            });
+          } else {
+            sendResponse({ status: 'error', message: lastError || 'Ошибка экспорта' });
+          }
+          return;
+        }
+
+        // CSV and JSON (no splitting)
+        let dataUrl, filename;
 
         switch (format) {
-          case 'xlsx':
-            dataUrl = await exportToXLSX(filtered, useMobileOnly, selectedCity);
-            filename = `2gis_export_${Date.now()}.xlsx`;
-            break;
-
           case 'csv':
             const csvContent = exportToCSV(filtered, useMobileOnly);
             const csvBlob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
@@ -853,7 +1083,7 @@ async function handleMessage(message, sendResponse) {
               reader.onloadend = () => resolve(reader.result);
               reader.readAsDataURL(csvBlob);
             });
-            filename = `2gis_export_${Date.now()}.csv`;
+            filename = generateFilename(category, selectedCity, 1, 1, exportDate).replace('.xlsx', '.csv');
             break;
 
           case 'json':
@@ -864,7 +1094,7 @@ async function handleMessage(message, sendResponse) {
               reader.onloadend = () => resolve(reader.result);
               reader.readAsDataURL(jsonBlob);
             });
-            filename = `2gis_export_${Date.now()}.json`;
+            filename = generateFilename(category, selectedCity, 1, 1, exportDate).replace('.xlsx', '.json');
             break;
         }
 
@@ -881,6 +1111,7 @@ async function handleMessage(message, sendResponse) {
         });
 
       } catch (error) {
+        console.error('[Background] Export error:', error);
         sendResponse({ status: 'error', message: error.message });
       }
       break;

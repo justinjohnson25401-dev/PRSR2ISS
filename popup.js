@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Popup Script v2.3.7
+// 2GIS Parser Pro - Popup Script v2.3.8
 
 class ParserPopup {
   constructor() {
@@ -12,6 +12,15 @@ class ParserPopup {
     };
     this.selectedCity = 'Москва';
     this.isCollecting = false;
+
+    // Export settings
+    this.exportSettings = {
+      category: '',
+      specialOrder: false,
+      customCity: '',
+      customPackSize: 1000
+    };
+
     this.init();
   }
 
@@ -20,6 +29,7 @@ class ParserPopup {
       this.bindEvents();
       this.loadFilters();
       this.loadCity();
+      this.loadExportSettings();
       this.updateStats();
       this.startAutoUpdate();
     });
@@ -82,6 +92,34 @@ class ParserPopup {
       this.filters.onlyWithTelegram = e.target.checked;
       this.saveFilters();
     });
+
+    // Export settings
+    document.getElementById('categoryInput').addEventListener('input', (e) => {
+      this.exportSettings.category = e.target.value.trim();
+      this.saveExportSettings();
+    });
+
+    document.getElementById('specialOrderCheck').addEventListener('change', (e) => {
+      this.exportSettings.specialOrder = e.target.checked;
+      this.toggleSpecialOrderFields(e.target.checked);
+      this.saveExportSettings();
+    });
+
+    document.getElementById('customCity').addEventListener('input', (e) => {
+      this.exportSettings.customCity = e.target.value.trim();
+      this.saveExportSettings();
+    });
+
+    document.getElementById('customPackSize').addEventListener('change', (e) => {
+      this.exportSettings.customPackSize = Math.max(100, Math.min(50000, parseInt(e.target.value) || 1000));
+      e.target.value = this.exportSettings.customPackSize;
+      this.saveExportSettings();
+    });
+  }
+
+  toggleSpecialOrderFields(show) {
+    const fieldsContainer = document.getElementById('specialOrderFields');
+    fieldsContainer.style.display = show ? 'block' : 'none';
   }
 
   saveFilters() {
@@ -115,6 +153,27 @@ class ParserPopup {
     });
   }
 
+  saveExportSettings() {
+    chrome.storage.local.set({ parserExportSettings: this.exportSettings });
+  }
+
+  loadExportSettings() {
+    chrome.storage.local.get(['parserExportSettings'], (result) => {
+      if (result.parserExportSettings) {
+        this.exportSettings = { ...this.exportSettings, ...result.parserExportSettings };
+
+        // Update UI
+        document.getElementById('categoryInput').value = this.exportSettings.category || '';
+        document.getElementById('specialOrderCheck').checked = this.exportSettings.specialOrder || false;
+        document.getElementById('customCity').value = this.exportSettings.customCity || '';
+        document.getElementById('customPackSize').value = this.exportSettings.customPackSize || 1000;
+
+        // Show/hide special order fields
+        this.toggleSpecialOrderFields(this.exportSettings.specialOrder);
+      }
+    });
+  }
+
   updateStats() {
     chrome.runtime.sendMessage({ action: 'getStats' }, (response) => {
       if (response && response.status === 'ok') {
@@ -135,11 +194,24 @@ class ParserPopup {
   download(format) {
     this.showStatus('Подготовка файла...', 'warning');
 
+    // Determine which city to use: custom city (if special order) or selected city
+    const cityForExport = this.exportSettings.specialOrder && this.exportSettings.customCity
+      ? this.exportSettings.customCity
+      : this.selectedCity;
+
+    // Determine pack size: custom size (if special order) or default 1000
+    const packSize = this.exportSettings.specialOrder
+      ? this.exportSettings.customPackSize
+      : 1000;
+
     chrome.runtime.sendMessage({
       action: 'download',
       format: format,
       filters: this.filters,
-      city: this.selectedCity
+      city: cityForExport,
+      category: this.exportSettings.category,
+      packSize: packSize,
+      specialOrder: this.exportSettings.specialOrder
     }, (response) => {
       if (!response) {
         this.showStatus('Ошибка соединения', 'error');
@@ -147,7 +219,11 @@ class ParserPopup {
       }
 
       if (response.status === 'ok') {
-        this.showStatus(`Экспортировано ${response.count} компаний!`, 'success');
+        let msg = `Экспортировано ${response.count} компаний!`;
+        if (response.files && response.files > 1) {
+          msg = `Экспортировано ${response.count} компаний в ${response.files} файлов!`;
+        }
+        this.showStatus(msg, 'success');
       } else if (response.status === 'empty') {
         this.showStatus('Нет данных для экспорта', 'warning');
       } else {

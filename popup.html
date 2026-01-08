@@ -435,6 +435,76 @@
       text-align: center;
     }
 
+    /* Export settings */
+    .export-settings {
+      margin-bottom: 12px;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .setting-row label {
+      font-size: 12px;
+      color: var(--text);
+      flex-shrink: 0;
+    }
+
+    .text-input {
+      flex: 1;
+      margin-left: 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: inherit;
+    }
+
+    .text-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-light);
+    }
+
+    .number-input {
+      width: 80px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .number-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-light);
+    }
+
+    /* Special order section */
+    .special-order-section {
+      background: var(--bg-secondary);
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 12px;
+    }
+
+    .special-order-fields {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--border);
+    }
+
+    .setting-hint {
+      font-size: 9px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-top: 4px;
+    }
+
     /* Telegram icon */
     .tg-icon {
       display: inline-block;
@@ -450,7 +520,7 @@
 <body>
   <div class="header">
     <h1>2GIS Parser Pro</h1>
-    <div class="version">v2.3.7</div>
+    <div class="version">v2.3.8</div>
   </div>
 
   <div class="stats">
@@ -475,6 +545,14 @@
   <div class="content">
     <div id="status" class="status"></div>
 
+    <div class="section-title">Настройки экспорта</div>
+    <div class="export-settings">
+      <div class="setting-row">
+        <label for="categoryInput">📁 Категория:</label>
+        <input type="text" id="categoryInput" placeholder="Салоны красоты" class="text-input">
+      </div>
+    </div>
+
     <div class="section-title">Город для расчета расстояния</div>
     <div class="city-selector">
       <select id="citySelect">
@@ -494,6 +572,24 @@
         <option value="Пермь">Пермь</option>
         <option value="Волгоград">Волгоград</option>
       </select>
+    </div>
+
+    <div class="special-order-section">
+      <div class="filter-row">
+        <label><span class="icon">⚙️</span> Спецзаказ (ручные настройки)</label>
+        <input type="checkbox" id="specialOrderCheck">
+      </div>
+      <div class="special-order-fields" id="specialOrderFields" style="display: none;">
+        <div class="setting-row">
+          <label for="customCity">🏙️ Город (вручную):</label>
+          <input type="text" id="customCity" placeholder="Введите город" class="text-input">
+        </div>
+        <div class="setting-row">
+          <label for="customPackSize">📦 Записей в файле:</label>
+          <input type="number" id="customPackSize" min="100" max="50000" value="1000" class="number-input">
+        </div>
+        <div class="setting-hint">По умолчанию: 1000 записей в файле</div>
+      </div>
     </div>
 
     <div class="section-title">Сбор данных</div>
