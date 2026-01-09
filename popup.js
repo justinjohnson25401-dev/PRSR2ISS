@@ -605,10 +605,12 @@ class ParserPopup {
 
   monitorProgress(tabId, statusEl) {
     let lastPageRecorded = 0;
+    let lastTotalCompanies = 0;
 
     const checkProgress = () => {
       if (!this.isCollecting) return;
 
+      // Get script state from page
       chrome.scripting.executeScript({
         target: { tabId: tabId },
         world: 'MAIN',
@@ -619,8 +621,6 @@ class ParserPopup {
             done: window.__2gisParserDone || false,
             error: window.__2gisParserError || null,
             lastSuccess: window.__2gisParserLastSuccessPage || 0,
-            companiesOnPage: window.__2gisParserCompaniesOnPage || 0,
-            totalCompanies: window.__2gisParserTotalCompanies || 0,
             scrollProgress: window.__2gisParserScrollProgress || 0,
             scrollStatus: window.__2gisParserScrollStatus || 'Ожидание...'
           };
@@ -628,7 +628,7 @@ class ParserPopup {
       }).then(results => {
         if (!results || !results[0]) return;
 
-        const { page, total, done, error, lastSuccess, companiesOnPage, totalCompanies, scrollProgress, scrollStatus } = results[0].result;
+        const { page, total, done, error, lastSuccess, scrollProgress, scrollStatus } = results[0].result;
 
         if (error) {
           statusEl.textContent = error;
@@ -648,20 +648,29 @@ class ParserPopup {
         statusEl.textContent = `Страница ${page} из ${total}...`;
         statusEl.className = 'auto-collect-status';
 
-        // Update status panel
-        this.updateStatusPanel({
-          page: page,
-          lastSuccess: lastSuccess,
-          totalCompanies: totalCompanies,
-          scrollProgress: scrollProgress,
-          scrollStatus: scrollStatus
-        });
+        // Get REAL company count from storage via background
+        chrome.runtime.sendMessage({ action: 'getStats' }, (response) => {
+          const realTotalCompanies = response?.stats?.total || 0;
 
-        // Add to history if new page was completed
-        if (lastSuccess > lastPageRecorded && companiesOnPage > 0) {
-          this.addPageToHistory(lastSuccess, companiesOnPage);
-          lastPageRecorded = lastSuccess;
-        }
+          // Update status panel with real data
+          this.updateStatusPanel({
+            page: page,
+            lastSuccess: lastSuccess,
+            totalCompanies: realTotalCompanies,
+            scrollProgress: scrollProgress,
+            scrollStatus: scrollStatus
+          });
+
+          // Add to history if new page was completed
+          if (lastSuccess > lastPageRecorded) {
+            const companiesOnThisPage = realTotalCompanies - lastTotalCompanies;
+            if (companiesOnThisPage > 0) {
+              this.addPageToHistory(lastSuccess, companiesOnThisPage);
+            }
+            lastPageRecorded = lastSuccess;
+            lastTotalCompanies = realTotalCompanies;
+          }
+        });
 
         setTimeout(checkProgress, 300);
       }).catch(() => {
