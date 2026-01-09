@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Popup Script v2.5.0
+// 2GIS Parser Pro - Popup Script v2.6.0
 
 class ParserPopup {
   constructor() {
@@ -8,7 +8,9 @@ class ParserPopup {
       onlyMobilePhones: false,
       onlyWithEmail: false,
       onlyWithSite: false,
-      onlyWithTelegram: false
+      onlyWithTelegram: false,
+      onlyWithAnySocial: false,
+      noSiteWithSocial: false
     };
     this.selectedCity = 'Москва';
     this.isCollecting = false;
@@ -101,6 +103,16 @@ class ParserPopup {
       this.saveFilters();
     });
 
+    document.getElementById('filterAnySocial').addEventListener('change', (e) => {
+      this.filters.onlyWithAnySocial = e.target.checked;
+      this.saveFilters();
+    });
+
+    document.getElementById('filterNoSiteWithSocial').addEventListener('change', (e) => {
+      this.filters.noSiteWithSocial = e.target.checked;
+      this.saveFilters();
+    });
+
     // Export settings
     document.getElementById('categoryInput').addEventListener('input', (e) => {
       this.exportSettings.category = e.target.value.trim();
@@ -157,13 +169,15 @@ class ParserPopup {
   loadFilters() {
     chrome.storage.local.get(['parserFilters'], (result) => {
       if (result.parserFilters) {
-        this.filters = result.parserFilters;
+        this.filters = { ...this.filters, ...result.parserFilters };
         document.getElementById('filterRating').value = this.filters.minRating || 0;
         document.getElementById('filterPhone').checked = this.filters.onlyWithPhone || false;
         document.getElementById('filterMobile').checked = this.filters.onlyMobilePhones || false;
         document.getElementById('filterEmail').checked = this.filters.onlyWithEmail || false;
         document.getElementById('filterSite').checked = this.filters.onlyWithSite || false;
         document.getElementById('filterTelegram').checked = this.filters.onlyWithTelegram || false;
+        document.getElementById('filterAnySocial').checked = this.filters.onlyWithAnySocial || false;
+        document.getElementById('filterNoSiteWithSocial').checked = this.filters.noSiteWithSocial || false;
       }
     });
   }
@@ -272,11 +286,23 @@ class ParserPopup {
     chrome.runtime.sendMessage({ action: 'getStats' }, (response) => {
       if (response && response.status === 'ok') {
         const stats = response.stats;
+        const total = stats.total || 0;
 
-        document.getElementById('totalCount').textContent = stats.total || 0;
-        document.getElementById('withPhones').textContent = stats.withPhones || 0;
-        document.getElementById('withTelegram').textContent = stats.withTelegram || 0;
-        document.getElementById('withMobile').textContent = stats.withMobilePhones || 0;
+        // Format helper: "123/456 (27%)"
+        const fmt = (count) => {
+          if (total === 0) return '0/0';
+          const pct = Math.round((count / total) * 100);
+          return `${count}/${total} (${pct}%)`;
+        };
+
+        document.getElementById('totalCount').textContent = total;
+        document.getElementById('statSites').textContent = fmt(stats.withSites || 0);
+        document.getElementById('statMobile').textContent = fmt(stats.withMobilePhones || 0);
+        document.getElementById('statTelegram').textContent = fmt(stats.withRealTelegram || 0);
+        document.getElementById('statVK').textContent = fmt(stats.withVK || 0);
+        document.getElementById('statWhatsApp').textContent = fmt(stats.withWhatsApp || 0);
+        document.getElementById('statEmail').textContent = fmt(stats.withEmails || 0);
+        document.getElementById('statTarget').textContent = fmt(stats.noSiteWithSocial || 0);
       }
     });
   }

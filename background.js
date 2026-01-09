@@ -647,6 +647,25 @@ function applyFilters(items, filters) {
       if (!isValidTelegramUsername(item.telegramUsername)) return false;
     }
 
+    // Any social network filter (real TG, VK, or WhatsApp)
+    if (filters.onlyWithAnySocial) {
+      const hasRealTelegram = item.telegram && isValidTelegramUsername(item.telegramUsername);
+      const hasVK = !!item.vk;
+      const hasWhatsApp = !!item.whatsapp;
+      if (!hasRealTelegram && !hasVK && !hasWhatsApp) return false;
+    }
+
+    // No website but has social network - target for web development offers
+    if (filters.noSiteWithSocial) {
+      // Must NOT have a website
+      if (item.urls && item.urls.length > 0) return false;
+      // Must have at least one social network
+      const hasRealTelegram = item.telegram && isValidTelegramUsername(item.telegramUsername);
+      const hasVK = !!item.vk;
+      const hasWhatsApp = !!item.whatsapp;
+      if (!hasRealTelegram && !hasVK && !hasWhatsApp) return false;
+    }
+
     return true;
   });
 }
@@ -1294,8 +1313,23 @@ async function handleMessage(message, sendResponse) {
       const withEmails = uniqueItems.filter(i => i.emails && i.emails.length > 0).length;
       const withSites = uniqueItems.filter(i => i.urls && i.urls.length > 0).length;
       const withTelegram = uniqueItems.filter(i => i.telegram).length;
+      const withRealTelegram = uniqueItems.filter(i => i.telegram && isValidTelegramUsername(i.telegramUsername)).length;
       const withVK = uniqueItems.filter(i => i.vk).length;
       const withWhatsApp = uniqueItems.filter(i => i.whatsapp).length;
+
+      // С любой соцсетью (TG/VK/WA) - только реальный телеграм считается
+      const withAnySocial = uniqueItems.filter(i =>
+        (i.telegram && isValidTelegramUsername(i.telegramUsername)) || i.vk || i.whatsapp
+      ).length;
+
+      // Без сайта но с соцсетью - целевая аудитория для веб-разработки
+      const noSiteWithSocial = uniqueItems.filter(i =>
+        (!i.urls || i.urls.length === 0) &&
+        ((i.telegram && isValidTelegramUsername(i.telegramUsername)) || i.vk || i.whatsapp)
+      ).length;
+
+      // Без сайта вообще
+      const noSite = uniqueItems.filter(i => !i.urls || i.urls.length === 0).length;
 
       sendResponse({
         status: 'ok',
@@ -1305,9 +1339,13 @@ async function handleMessage(message, sendResponse) {
           withMobilePhones,
           withEmails,
           withSites,
+          noSite,
           withTelegram,
+          withRealTelegram,
           withVK,
-          withWhatsApp
+          withWhatsApp,
+          withAnySocial,
+          noSiteWithSocial
         }
       });
       break;
