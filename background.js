@@ -584,6 +584,32 @@ function removeDuplicates(items) {
 
 // =============== FILTER FUNCTIONS ===============
 
+// Check if telegram username is real (not a phone number)
+function isValidTelegramUsername(username) {
+  if (!username) return false;
+
+  // Remove @ if present
+  const clean = username.replace(/^@/, '');
+
+  // If empty after cleaning
+  if (!clean) return false;
+
+  // If it's all digits - it's a phone number, not valid telegram
+  if (/^\d+$/.test(clean)) return false;
+
+  // If starts with 7 or 8 and has 10-11 digits - phone number
+  if (/^[78]\d{9,10}$/.test(clean)) return false;
+
+  // If contains only digits and + - phone number
+  if (/^[\d+]+$/.test(clean)) return false;
+
+  // Valid telegram usernames: 5-32 chars, letters, numbers, underscores
+  // Must contain at least one letter
+  if (!/[a-zA-Z]/.test(clean)) return false;
+
+  return true;
+}
+
 function applyFilters(items, filters) {
   if (!filters) return items;
 
@@ -614,9 +640,11 @@ function applyFilters(items, filters) {
       if (!item.urls || item.urls.length === 0) return false;
     }
 
-    // Telegram filter
+    // Telegram filter - now checks for REAL telegram username (not phone numbers)
     if (filters.onlyWithTelegram) {
       if (!item.telegram) return false;
+      // Check that telegramUsername is valid (not a phone number like @79995466000)
+      if (!isValidTelegramUsername(item.telegramUsername)) return false;
     }
 
     return true;
