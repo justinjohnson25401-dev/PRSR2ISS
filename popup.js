@@ -715,32 +715,58 @@ class ParserPopup {
           // Method 1: Find by exact class name (from 2GIS DOM structure)
           var exactContainer = document.querySelector('._jdkjbol');
           if (exactContainer) {
-            console.log('[2GIS Parser] Found scroll container via ._jdkjbol class');
-            return exactContainer;
+            console.log('[2GIS Parser] Found ._jdkjbol, scrollHeight:', exactContainer.scrollHeight, 'clientHeight:', exactContainer.clientHeight);
+
+            // Check if this container is actually scrollable
+            if (exactContainer.scrollHeight > exactContainer.clientHeight + 50) {
+              console.log('[2GIS Parser] ._jdkjbol is scrollable!');
+              return exactContainer;
+            }
+
+            // If not scrollable, check its children
+            var children = exactContainer.children;
+            for (var c = 0; c < children.length; c++) {
+              var child = children[c];
+              console.log('[2GIS Parser] Child', c, 'scrollHeight:', child.scrollHeight, 'clientHeight:', child.clientHeight);
+              if (child.scrollHeight > child.clientHeight + 50) {
+                console.log('[2GIS Parser] Found scrollable child of ._jdkjbol');
+                return child;
+              }
+            }
+
+            // Maybe parent is scrollable?
+            var parent = exactContainer.parentElement;
+            if (parent && parent.scrollHeight > parent.clientHeight + 50) {
+              console.log('[2GIS Parser] Parent of ._jdkjbol is scrollable');
+              return parent;
+            }
           }
 
           // Method 2: Find by data-scroll attribute on the cards container
           var scrollContainers = document.querySelectorAll('[data-scroll="true"]');
           for (var i = 0; i < scrollContainers.length; i++) {
             var container = scrollContainers[i];
+            console.log('[2GIS Parser] data-scroll container', i, 'width:', container.clientWidth, 'scrollH:', container.scrollHeight, 'clientH:', container.clientHeight);
             // Make sure it's the results container (not filters) - check width > 300px
-            if (container.clientWidth > 300) {
-              console.log('[2GIS Parser] Found scroll container via data-scroll (width:', container.clientWidth + ')');
+            if (container.clientWidth > 300 && container.scrollHeight > container.clientHeight + 50) {
+              console.log('[2GIS Parser] Using data-scroll container', i);
               return container;
             }
           }
 
-          // Method 3: Find by parent chain classes from the path
-          var pathSelectors = [
-            '._1g0w9mx ._jcreqo ._1tdquig ._z72pvu ._3zzdxk ._1667t0u > div',
-            '._1667t0u > div',
-            '._3zzdxk > ._1667t0u > div'
-          ];
-          for (var j = 0; j < pathSelectors.length; j++) {
-            var el = document.querySelector(pathSelectors[j]);
-            if (el && el.scrollHeight > el.clientHeight) {
-              console.log('[2GIS Parser] Found via path selector:', pathSelectors[j]);
-              return el;
+          // Method 3: Brute force - find ANY scrollable container in the results area
+          var allDivs = document.querySelectorAll('div');
+          for (var j = 0; j < allDivs.length; j++) {
+            var div = allDivs[j];
+            if (div.scrollHeight > div.clientHeight + 200 &&
+                div.clientHeight > 300 &&
+                div.clientWidth > 300 &&
+                div.clientWidth < 500) { // Results panel is around 350-400px wide
+              var style = getComputedStyle(div);
+              if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+                console.log('[2GIS Parser] Found scrollable div via brute force, class:', div.className.substring(0, 30));
+                return div;
+              }
             }
           }
 
