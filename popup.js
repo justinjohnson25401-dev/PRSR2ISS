@@ -712,11 +712,28 @@ class ParserPopup {
 
         // Find the scrollable container with company cards
         function findScrollContainer() {
-          // Method 1: Find container that has company cards inside
-          var cardSelectors = ['[class*="_1hf7139"]', '[class*="_93444ei"]', '[class*="_awwm2v"]', '[class*="_1kf6gff"]'];
+          // Method 1: Find by data-scroll attribute (BEST - 2GIS marks scrollable containers)
+          var scrollableByAttr = document.querySelector('[data-scroll="true"]');
+          if (scrollableByAttr) {
+            console.log('[2GIS Parser] Found scroll container via data-scroll attribute');
+            return scrollableByAttr;
+          }
 
-          for (var i = 0; i < cardSelectors.length; i++) {
-            var card = document.querySelector(cardSelectors[i]);
+          // Method 2: Find by known 2GIS class for results scroll container
+          var knownClasses = ['._jdkjbol', '[class*="_jdkjbol"]', '[class*="_jdk"]'];
+          for (var i = 0; i < knownClasses.length; i++) {
+            var el = document.querySelector(knownClasses[i]);
+            if (el && el.scrollHeight > el.clientHeight) {
+              console.log('[2GIS Parser] Found scroll container via class:', knownClasses[i]);
+              return el;
+            }
+          }
+
+          // Method 3: Find container that has company cards inside
+          var cardSelectors = ['[class*="_1hf7139"]', '[class*="_93444ei"]', '[class*="_awwm2v"]'];
+
+          for (var j = 0; j < cardSelectors.length; j++) {
+            var card = document.querySelector(cardSelectors[j]);
             if (card) {
               // Go up to find scrollable parent
               var parent = card.parentElement;
@@ -725,49 +742,14 @@ class ParserPopup {
                 if (parent.scrollHeight > parent.clientHeight + 50 &&
                     parent.clientHeight > 200 &&
                     getComputedStyle(parent).overflowY !== 'visible') {
-                  console.log('[2GIS Parser] Found scroll container via card parent');
-                  return parent;
+                  // Make sure it's NOT the left filter panel (check width)
+                  if (parent.clientWidth > 300) {
+                    console.log('[2GIS Parser] Found scroll container via card parent');
+                    return parent;
+                  }
                 }
                 parent = parent.parentElement;
                 maxUp--;
-              }
-            }
-          }
-
-          // Method 2: Find by known 2GIS class patterns for results list
-          var resultSelectors = [
-            '[class*="_1tfdo2b"]', // results container
-            '[class*="_z84lx1"]',  // search results
-            '[class*="_1lhht27"]', // list container
-          ];
-
-          for (var j = 0; j < resultSelectors.length; j++) {
-            var el = document.querySelector(resultSelectors[j]);
-            if (el && el.scrollHeight > el.clientHeight) {
-              console.log('[2GIS Parser] Found scroll container via selector:', resultSelectors[j]);
-              return el;
-            }
-          }
-
-          // Method 3: Find scrollable element that contains cards but NOT filters
-          var allScrollable = document.querySelectorAll('*');
-          for (var k = 0; k < allScrollable.length; k++) {
-            var elem = allScrollable[k];
-            var style = getComputedStyle(elem);
-
-            // Check if scrollable
-            if (elem.scrollHeight > elem.clientHeight + 100 &&
-                elem.clientHeight > 300 &&
-                (style.overflowY === 'auto' || style.overflowY === 'scroll')) {
-
-              // Check if contains company cards
-              var hasCards = elem.querySelector('[class*="_1hf7139"], [class*="_93444ei"]');
-              // Check if NOT the filter sidebar (filter sidebar usually narrower)
-              var isNotFilter = elem.clientWidth > 400;
-
-              if (hasCards && isNotFilter) {
-                console.log('[2GIS Parser] Found scroll container via scan, width:', elem.clientWidth);
-                return elem;
               }
             }
           }
