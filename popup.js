@@ -712,45 +712,35 @@ class ParserPopup {
 
         // Find the scrollable container with company cards
         function findScrollContainer() {
-          // Method 1: Find by data-scroll attribute (BEST - 2GIS marks scrollable containers)
-          var scrollableByAttr = document.querySelector('[data-scroll="true"]');
-          if (scrollableByAttr) {
-            console.log('[2GIS Parser] Found scroll container via data-scroll attribute');
-            return scrollableByAttr;
+          // Method 1: Find by exact class name (from 2GIS DOM structure)
+          var exactContainer = document.querySelector('._jdkjbol');
+          if (exactContainer) {
+            console.log('[2GIS Parser] Found scroll container via ._jdkjbol class');
+            return exactContainer;
           }
 
-          // Method 2: Find by known 2GIS class for results scroll container
-          var knownClasses = ['._jdkjbol', '[class*="_jdkjbol"]', '[class*="_jdk"]'];
-          for (var i = 0; i < knownClasses.length; i++) {
-            var el = document.querySelector(knownClasses[i]);
-            if (el && el.scrollHeight > el.clientHeight) {
-              console.log('[2GIS Parser] Found scroll container via class:', knownClasses[i]);
-              return el;
+          // Method 2: Find by data-scroll attribute on the cards container
+          var scrollContainers = document.querySelectorAll('[data-scroll="true"]');
+          for (var i = 0; i < scrollContainers.length; i++) {
+            var container = scrollContainers[i];
+            // Make sure it's the results container (not filters) - check width > 300px
+            if (container.clientWidth > 300) {
+              console.log('[2GIS Parser] Found scroll container via data-scroll (width:', container.clientWidth + ')');
+              return container;
             }
           }
 
-          // Method 3: Find container that has company cards inside
-          var cardSelectors = ['[class*="_1hf7139"]', '[class*="_93444ei"]', '[class*="_awwm2v"]'];
-
-          for (var j = 0; j < cardSelectors.length; j++) {
-            var card = document.querySelector(cardSelectors[j]);
-            if (card) {
-              // Go up to find scrollable parent
-              var parent = card.parentElement;
-              var maxUp = 10;
-              while (parent && maxUp > 0) {
-                if (parent.scrollHeight > parent.clientHeight + 50 &&
-                    parent.clientHeight > 200 &&
-                    getComputedStyle(parent).overflowY !== 'visible') {
-                  // Make sure it's NOT the left filter panel (check width)
-                  if (parent.clientWidth > 300) {
-                    console.log('[2GIS Parser] Found scroll container via card parent');
-                    return parent;
-                  }
-                }
-                parent = parent.parentElement;
-                maxUp--;
-              }
+          // Method 3: Find by parent chain classes from the path
+          var pathSelectors = [
+            '._1g0w9mx ._jcreqo ._1tdquig ._z72pvu ._3zzdxk ._1667t0u > div',
+            '._1667t0u > div',
+            '._3zzdxk > ._1667t0u > div'
+          ];
+          for (var j = 0; j < pathSelectors.length; j++) {
+            var el = document.querySelector(pathSelectors[j]);
+            if (el && el.scrollHeight > el.clientHeight) {
+              console.log('[2GIS Parser] Found via path selector:', pathSelectors[j]);
+              return el;
             }
           }
 
