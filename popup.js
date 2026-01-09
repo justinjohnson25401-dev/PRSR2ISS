@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Popup Script v2.4.0
+// 2GIS Parser Pro - Popup Script v2.5.0
 
 class ParserPopup {
   constructor() {
@@ -22,6 +22,11 @@ class ParserPopup {
       customPackSize: 1000
     };
 
+    // Auto-collect settings
+    this.collectInterval = 20; // Default 20 seconds
+    this.pageHistory = []; // History of pages with company counts
+    this.historyExpanded = false;
+
     this.init();
   }
 
@@ -31,6 +36,7 @@ class ParserPopup {
       this.loadFilters();
       this.loadCity();
       this.loadExportSettings();
+      this.loadCollectSettings(); // Загружаем настройки интервала
       this.checkCollectingState(); // Проверяем состояние сбора при открытии
       this.updateStats();
       this.startAutoUpdate();
@@ -117,6 +123,26 @@ class ParserPopup {
       e.target.value = this.exportSettings.customPackSize;
       this.saveExportSettings();
     });
+
+    // Interval selector
+    document.getElementById('intervalSelect').addEventListener('change', (e) => {
+      this.collectInterval = parseInt(e.target.value) || 20;
+      this.saveCollectSettings();
+    });
+
+    // History toggle
+    document.getElementById('historyToggle').addEventListener('click', () => {
+      this.historyExpanded = !this.historyExpanded;
+      const historyEl = document.getElementById('pageHistory');
+      const toggleEl = document.getElementById('historyToggle');
+      if (this.historyExpanded) {
+        historyEl.style.display = 'block';
+        toggleEl.innerHTML = '📜 Скрыть историю страниц ▲';
+      } else {
+        historyEl.style.display = 'none';
+        toggleEl.innerHTML = '📜 Показать историю страниц ▼';
+      }
+    });
   }
 
   toggleSpecialOrderFields(show) {
@@ -174,6 +200,72 @@ class ParserPopup {
         this.toggleSpecialOrderFields(this.exportSettings.specialOrder);
       }
     });
+  }
+
+  // Collect settings (interval, history)
+  saveCollectSettings() {
+    chrome.storage.local.set({
+      parserCollectSettings: {
+        interval: this.collectInterval
+      }
+    });
+  }
+
+  loadCollectSettings() {
+    chrome.storage.local.get(['parserCollectSettings', 'parserPageHistory'], (result) => {
+      if (result.parserCollectSettings) {
+        this.collectInterval = result.parserCollectSettings.interval || 20;
+        document.getElementById('intervalSelect').value = this.collectInterval;
+      }
+      if (result.parserPageHistory) {
+        this.pageHistory = result.parserPageHistory;
+        this.renderPageHistory();
+      }
+    });
+  }
+
+  savePageHistory() {
+    chrome.storage.local.set({ parserPageHistory: this.pageHistory });
+  }
+
+  clearPageHistory() {
+    this.pageHistory = [];
+    chrome.storage.local.remove(['parserPageHistory']);
+    this.renderPageHistory();
+  }
+
+  addPageToHistory(pageNum, companiesCount) {
+    this.pageHistory.push({
+      page: pageNum,
+      companies: companiesCount,
+      time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    });
+    // Keep last 100 entries
+    if (this.pageHistory.length > 100) {
+      this.pageHistory = this.pageHistory.slice(-100);
+    }
+    this.savePageHistory();
+    this.renderPageHistory();
+  }
+
+  renderPageHistory() {
+    const historyEl = document.getElementById('pageHistory');
+    if (!historyEl) return;
+
+    if (this.pageHistory.length === 0) {
+      historyEl.innerHTML = '<div style="text-align: center; color: #999;">История пуста</div>';
+      return;
+    }
+
+    // Show last 20 entries, reversed (newest first)
+    const recentHistory = this.pageHistory.slice(-20).reverse();
+    historyEl.innerHTML = recentHistory.map(item =>
+      `<div style="padding: 2px 0; border-bottom: 1px dotted #eee;">
+        <span style="color: #2196f3;">Стр. ${item.page}</span>:
+        <strong>${item.companies}</strong> комп.
+        <span style="color: #999; font-size: 9px;">(${item.time})</span>
+      </div>`
+    ).join('');
   }
 
   updateStats() {
@@ -377,14 +469,40 @@ class ParserPopup {
   // Обновляем UI кнопки сбора
   updateCollectingUI(collecting) {
     const btn = document.getElementById('autoCollectBtn');
+    const statusPanel = document.getElementById('collectStatusPanel');
+    const intervalSelector = document.querySelector('.interval-selector');
+
     if (collecting) {
       btn.classList.add('collecting');
       btn.querySelector('.text').textContent = 'Остановить сбор';
       btn.querySelector('.icon').textContent = '⏹️';
+      statusPanel.style.display = 'block';
+      intervalSelector.style.display = 'none'; // Hide interval selector during collection
     } else {
       btn.classList.remove('collecting');
       btn.querySelector('.text').textContent = 'Собрать все страницы';
       btn.querySelector('.icon').textContent = '🔄';
+      statusPanel.style.display = 'none';
+      intervalSelector.style.display = 'flex'; // Show interval selector
+    }
+  }
+
+  // Update status panel with current progress
+  updateStatusPanel(data) {
+    const currentPageEl = document.getElementById('currentPageNum');
+    const lastSuccessEl = document.getElementById('lastSuccessPage');
+    const totalCompaniesEl = document.getElementById('totalCompaniesCollected');
+    const scrollProgressEl = document.getElementById('scrollProgress');
+    const scrollStatusEl = document.getElementById('scrollStatusText');
+
+    if (data.page !== undefined) currentPageEl.textContent = data.page;
+    if (data.lastSuccess !== undefined) lastSuccessEl.textContent = data.lastSuccess;
+    if (data.totalCompanies !== undefined) totalCompaniesEl.textContent = data.totalCompanies;
+    if (data.scrollProgress !== undefined) {
+      scrollProgressEl.style.width = data.scrollProgress + '%';
+    }
+    if (data.scrollStatus !== undefined) {
+      scrollStatusEl.textContent = data.scrollStatus;
     }
   }
 
@@ -486,6 +604,8 @@ class ParserPopup {
   }
 
   monitorProgress(tabId, statusEl) {
+    let lastPageRecorded = 0;
+
     const checkProgress = () => {
       if (!this.isCollecting) return;
 
@@ -497,13 +617,18 @@ class ParserPopup {
             page: window.__2gisParserCurrentPage || 0,
             total: window.__2gisParserTotalPages || '?',
             done: window.__2gisParserDone || false,
-            error: window.__2gisParserError || null
+            error: window.__2gisParserError || null,
+            lastSuccess: window.__2gisParserLastSuccessPage || 0,
+            companiesOnPage: window.__2gisParserCompaniesOnPage || 0,
+            totalCompanies: window.__2gisParserTotalCompanies || 0,
+            scrollProgress: window.__2gisParserScrollProgress || 0,
+            scrollStatus: window.__2gisParserScrollStatus || 'Ожидание...'
           };
         }
       }).then(results => {
         if (!results || !results[0]) return;
 
-        const { page, total, done, error } = results[0].result;
+        const { page, total, done, error, lastSuccess, companiesOnPage, totalCompanies, scrollProgress, scrollStatus } = results[0].result;
 
         if (error) {
           statusEl.textContent = error;
@@ -523,7 +648,22 @@ class ParserPopup {
         statusEl.textContent = `Страница ${page} из ${total}...`;
         statusEl.className = 'auto-collect-status';
 
-        setTimeout(checkProgress, 500);
+        // Update status panel
+        this.updateStatusPanel({
+          page: page,
+          lastSuccess: lastSuccess,
+          totalCompanies: totalCompanies,
+          scrollProgress: scrollProgress,
+          scrollStatus: scrollStatus
+        });
+
+        // Add to history if new page was completed
+        if (lastSuccess > lastPageRecorded && companiesOnPage > 0) {
+          this.addPageToHistory(lastSuccess, companiesOnPage);
+          lastPageRecorded = lastSuccess;
+        }
+
+        setTimeout(checkProgress, 300);
       }).catch(() => {
         if (this.isCollecting) {
           setTimeout(checkProgress, 1000);
@@ -531,29 +671,157 @@ class ParserPopup {
       });
     };
 
-    setTimeout(checkProgress, 500);
+    setTimeout(checkProgress, 300);
   }
 
   // Build the auto-collect script as a string (avoids Chrome serialization issues)
-  // FIXED: Always 10 seconds delay between pages
+  // v2.5.0: Smooth scrolling over entire interval duration
   buildAutoCollectScript() {
+    const intervalSeconds = this.collectInterval;
+
     return `
       (async function() {
-        console.log('=== [2GIS Parser] Script started! ===');
-        console.log('[2GIS Parser] FIXED delay: 10 seconds between pages');
+        console.log('=== [2GIS Parser v2.5.0] Script started! ===');
 
+        // Configuration
+        var SCROLL_DURATION_MS = ${intervalSeconds * 1000}; // Smooth scroll takes the entire interval
+        var MAX_PAGES = 9999;
+
+        console.log('[2GIS Parser] Scroll duration:', SCROLL_DURATION_MS / 1000, 'seconds');
+
+        // State variables exposed to popup
         window.__2gisParserStop = false;
         window.__2gisParserDone = false;
         window.__2gisParserError = null;
         window.__2gisParserCurrentPage = 1;
         window.__2gisParserTotalPages = '?';
+        window.__2gisParserLastSuccessPage = 0;
+        window.__2gisParserCompaniesOnPage = 0;
+        window.__2gisParserTotalCompanies = 0;
+        window.__2gisParserScrollProgress = 0;
+        window.__2gisParserScrollStatus = 'Запуск...';
 
-        // FIXED: Always 10 seconds (10000ms) between page switches
-        var DELAY_MS = 10000;
-        var MAX_PAGES = 9999;
+        // Find the scrollable container
+        function findScrollContainer() {
+          // Try multiple selectors for 2GIS scroll container
+          var selectors = [
+            '._1x4k6z7', // pagination container's parent
+            '[class*="_1kf6gff"]', // common scroll container
+            '.scroll', // generic
+            '[style*="overflow"]'
+          ];
+          for (var i = 0; i < selectors.length; i++) {
+            var el = document.querySelector(selectors[i]);
+            if (el && el.scrollHeight > el.clientHeight) {
+              return el;
+            }
+          }
+          // Fallback: find first scrollable element in results area
+          var all = document.querySelectorAll('[class*="_"]');
+          for (var j = 0; j < all.length; j++) {
+            var elem = all[j];
+            if (elem.scrollHeight > elem.clientHeight + 100 && elem.clientHeight > 200) {
+              return elem;
+            }
+          }
+          return null;
+        }
+
+        // Count visible company cards
+        function countCompanies() {
+          var cards = document.querySelectorAll('[class*="_1hf7139"], [class*="_93444ei"]');
+          return cards.length;
+        }
+
+        // Human-like smooth scroll function that takes the entire duration
+        async function smoothScrollDown(container, durationMs) {
+          if (!container) {
+            console.warn('[2GIS Parser] No scroll container found');
+            return;
+          }
+
+          var startScrollTop = container.scrollTop;
+          var maxScroll = container.scrollHeight - container.clientHeight;
+          var targetScroll = Math.min(startScrollTop + container.clientHeight * 3, maxScroll);
+          var scrollDistance = targetScroll - startScrollTop;
+
+          if (scrollDistance <= 0) {
+            // Already at bottom, scroll to top and back
+            container.scrollTop = 0;
+            await new Promise(function(r) { setTimeout(r, 500); });
+            startScrollTop = 0;
+            scrollDistance = maxScroll;
+            targetScroll = maxScroll;
+          }
+
+          var startTime = Date.now();
+          var frameDelay = 50; // Update every 50ms for smooth appearance
+          var steps = Math.floor(durationMs / frameDelay);
+
+          window.__2gisParserScrollStatus = 'Скролл...';
+
+          for (var step = 0; step <= steps; step++) {
+            if (window.__2gisParserStop) break;
+
+            // Easing function for natural movement (ease-in-out)
+            var progress = step / steps;
+            var easedProgress = progress < 0.5
+              ? 2 * progress * progress
+              : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+            // Add small random variation for human-like behavior
+            var variation = (Math.random() - 0.5) * 5;
+            var currentScroll = startScrollTop + (scrollDistance * easedProgress) + variation;
+
+            container.scrollTop = Math.max(0, Math.min(currentScroll, maxScroll));
+
+            // Update progress
+            window.__2gisParserScrollProgress = Math.round(progress * 100);
+
+            // Random micro-pauses to simulate human behavior
+            var delay = frameDelay;
+            if (Math.random() < 0.05) {
+              delay += Math.random() * 200; // Occasional longer pause
+            }
+
+            await new Promise(function(r) { setTimeout(r, delay); });
+          }
+
+          // Ensure we reach the target
+          container.scrollTop = targetScroll;
+          window.__2gisParserScrollProgress = 100;
+          window.__2gisParserScrollStatus = 'Скролл завершен';
+        }
+
+        // Find next page button
+        function findNextButton() {
+          // Method 1: pagination container with arrows
+          var container = document.querySelector('._1x4k6z7');
+          if (container) {
+            var divs = container.querySelectorAll('div');
+            var arrows = [];
+            for (var i = 0; i < divs.length; i++) {
+              var svg = divs[i].querySelector(':scope > svg');
+              if (svg) arrows.push(divs[i]);
+            }
+            if (arrows.length >= 2) {
+              return arrows[arrows.length - 1]; // Last arrow is "next"
+            } else if (arrows.length === 1) {
+              return arrows[0];
+            }
+          }
+
+          // Method 2: by class
+          var btns = document.querySelectorAll('[class*="_n5hmn94"]');
+          if (btns.length >= 2) {
+            return btns[btns.length - 1];
+          }
+
+          return null;
+        }
 
         try {
-          // Получаем общее количество
+          // Get total count
           var bodyText = document.body.innerText;
           var match = bodyText.match(/Места\\s+(\\d[\\d\\s]*)/i);
           console.log('[2GIS Parser] Match:', match);
@@ -569,46 +837,35 @@ class ParserPopup {
           var currentPage = 1;
           window.__2gisParserCurrentPage = currentPage;
           var noButtonCount = 0;
+          var scrollContainer = findScrollContainer();
+
+          console.log('[2GIS Parser] Scroll container:', scrollContainer ? 'found' : 'not found');
+
+          // Initial company count
+          var initialCompanies = countCompanies();
+          window.__2gisParserCompaniesOnPage = initialCompanies;
+          window.__2gisParserTotalCompanies = initialCompanies;
+          window.__2gisParserLastSuccessPage = 1;
 
           while (!window.__2gisParserStop) {
-            console.log('[2GIS Parser] Page', currentPage, '- waiting 10 seconds...');
+            console.log('[2GIS Parser] Page', currentPage, '- starting', SCROLL_DURATION_MS / 1000, 'sec scroll...');
+            window.__2gisParserScrollProgress = 0;
+            window.__2gisParserScrollStatus = 'Начинаю скролл...';
 
-            // FIXED: Always wait exactly 10 seconds
-            await new Promise(function(r) { setTimeout(r, DELAY_MS); });
+            // Smooth scroll over the entire interval
+            await smoothScrollDown(scrollContainer, SCROLL_DURATION_MS);
 
             if (window.__2gisParserStop) {
               console.log('[2GIS Parser] STOPPED by user');
               break;
             }
 
-            // Ищем кнопку ">"
-            var nextBtn = null;
+            // Small pause before clicking next
+            window.__2gisParserScrollStatus = 'Переход на следующую...';
+            await new Promise(function(r) { setTimeout(r, 500); });
 
-            // Метод 1: по классу пагинации
-            var container = document.querySelector('._1x4k6z7');
-
-            if (container) {
-              var divs = container.querySelectorAll('div');
-              var arrows = [];
-              for (var i = 0; i < divs.length; i++) {
-                var svg = divs[i].querySelector(':scope > svg');
-                if (svg) arrows.push(divs[i]);
-              }
-              console.log('[2GIS Parser] Arrows found:', arrows.length);
-              if (arrows.length >= 2) {
-                nextBtn = arrows[arrows.length - 1];
-              } else if (arrows.length === 1) {
-                nextBtn = arrows[0];
-              }
-            }
-
-            // Метод 2: по классу _n5hmn94
-            if (!nextBtn) {
-              var btns = document.querySelectorAll('[class*="_n5hmn94"]');
-              if (btns.length >= 2) {
-                nextBtn = btns[btns.length - 1];
-              }
-            }
+            // Find and click next button
+            var nextBtn = findNextButton();
 
             if (!nextBtn) {
               noButtonCount++;
@@ -621,19 +878,35 @@ class ParserPopup {
             }
 
             noButtonCount = 0;
-            console.log('[2GIS Parser] Clicking next page button...');
 
+            // Scroll button into view and click
             nextBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            await new Promise(function(r) { setTimeout(r, 500); });
+            await new Promise(function(r) { setTimeout(r, 300); });
             nextBtn.click();
 
+            // Update page counter
             currentPage++;
             window.__2gisParserCurrentPage = currentPage;
             console.log('[2GIS Parser] Now on page', currentPage);
+
+            // Wait for page content to load
+            await new Promise(function(r) { setTimeout(r, 1500); });
+
+            // Count companies on new page
+            var companiesOnPage = countCompanies();
+            window.__2gisParserCompaniesOnPage = companiesOnPage;
+            window.__2gisParserTotalCompanies += companiesOnPage;
+            window.__2gisParserLastSuccessPage = currentPage;
+
+            console.log('[2GIS Parser] Page', currentPage, '- found', companiesOnPage, 'companies, total:', window.__2gisParserTotalCompanies);
+
+            // Re-find scroll container (might change after page switch)
+            scrollContainer = findScrollContainer();
           }
 
           window.__2gisParserDone = true;
-          console.log('[2GIS Parser] === DONE! Total pages collected:', currentPage, '===');
+          window.__2gisParserScrollStatus = 'Готово!';
+          console.log('[2GIS Parser] === DONE! Total pages:', currentPage, ', Total companies:', window.__2gisParserTotalCompanies, '===');
 
         } catch (err) {
           console.error('[2GIS Parser] ERROR:', err);
