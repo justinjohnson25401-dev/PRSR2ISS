@@ -4,6 +4,7 @@ class ParserPopup {
   constructor() {
     this.filters = {
       minRating: 0,
+      maxReviews: 0,  // 0 = no limit
       onlyWithPhone: false,
       onlyMobilePhones: false,
       onlyWithEmail: false,
@@ -75,6 +76,11 @@ class ParserPopup {
     // Filters
     document.getElementById('filterRating').addEventListener('change', (e) => {
       this.filters.minRating = parseFloat(e.target.value) || 0;
+      this.saveFilters();
+    });
+
+    document.getElementById('filterMaxReviews').addEventListener('change', (e) => {
+      this.filters.maxReviews = parseInt(e.target.value) || 0;
       this.saveFilters();
     });
 
@@ -175,6 +181,7 @@ class ParserPopup {
       if (result.parserFilters) {
         this.filters = { ...this.filters, ...result.parserFilters };
         document.getElementById('filterRating').value = this.filters.minRating || 0;
+        document.getElementById('filterMaxReviews').value = this.filters.maxReviews || 0;
         document.getElementById('filterPhone').checked = this.filters.onlyWithPhone || false;
         document.getElementById('filterMobile').checked = this.filters.onlyMobilePhones || false;
         document.getElementById('filterEmail').checked = this.filters.onlyWithEmail || false;
@@ -305,7 +312,6 @@ class ParserPopup {
         document.getElementById('statTelegram').textContent = fmt(stats.withRealTelegram || 0);
         document.getElementById('statVK').textContent = fmt(stats.withVK || 0);
         document.getElementById('statWhatsApp').textContent = fmt(stats.withWhatsApp || 0);
-        document.getElementById('statEmail').textContent = fmt(stats.withEmails || 0);
         document.getElementById('statTarget').textContent = fmt(stats.noSiteWithSocial || 0);
       }
     });

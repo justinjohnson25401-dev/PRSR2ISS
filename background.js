@@ -697,6 +697,13 @@ function applyFilters(items, filters) {
       if (rating < filters.minRating) return false;
     }
 
+    // Max reviews filter (0 = no limit)
+    // Helps find small businesses that may need website services
+    if (filters.maxReviews > 0) {
+      const reviewCount = parseInt(item.rating?.reviewCount) || 0;
+      if (reviewCount > filters.maxReviews) return false;
+    }
+
     // Phone filter
     if (filters.onlyWithPhone) {
       if (!item.contacts || item.contacts.length === 0) return false;

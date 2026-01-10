@@ -710,64 +710,116 @@
       </div>
     </div>
 
-    <!-- Filters Section -->
+    <!-- Filters Section - with explanations -->
     <div class="section">
-      <div class="section-header">🔍 Фильтры</div>
-      <div class="filters-grid">
-        <div class="filter-item target">
-          <label for="filterNoSiteWithSocial">
-            <span>🎯</span> Без сайта + соцсеть
-          </label>
-          <input type="checkbox" id="filterNoSiteWithSocial">
-        </div>
+      <div class="section-header">🔍 Фильтры для экспорта</div>
+      <div class="filter-hint" style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px; padding: 8px; background: var(--bg-input); border-radius: 6px;">
+        Фильтры применяются при скачивании файла. Собираются ВСЕ компании, но в файл попадут только те, что соответствуют выбранным фильтрам.
+      </div>
 
-        <div class="filter-item">
-          <label for="filterAnySocial">
-            <span>💬</span> С соцсетью
-          </label>
-          <input type="checkbox" id="filterAnySocial">
+      <!-- Target filter for sales -->
+      <div class="filter-section" style="margin-bottom: 12px;">
+        <div class="filter-section-title" style="font-size: 10px; color: var(--accent-orange); font-weight: 600; margin-bottom: 6px;">
+          🎯 ЦЕЛЕВОЙ ФИЛЬТР (для предложения услуг разработки сайтов)
         </div>
-
-        <div class="filter-item">
-          <label for="filterTelegram">
-            <span>✈️</span> Telegram
-          </label>
-          <input type="checkbox" id="filterTelegram">
+        <div class="filter-item target" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+          <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+            <label for="filterNoSiteWithSocial" style="font-weight: 600;">
+              Без своего сайта + есть соцсеть
+            </label>
+            <input type="checkbox" id="filterNoSiteWithSocial">
+          </div>
+          <div style="font-size: 9px; color: var(--text-muted); line-height: 1.3;">
+            Компании без собственного сайта (yclients/youtube не считаются), но с TG/VK/WA для связи. Им можно предложить создание сайта.
+          </div>
         </div>
+      </div>
 
-        <div class="filter-item">
-          <label for="filterMobile">
-            <span>📱</span> Мобильный
-          </label>
-          <input type="checkbox" id="filterMobile">
+      <!-- Social networks -->
+      <div class="filter-section" style="margin-bottom: 12px;">
+        <div class="filter-section-title" style="font-size: 10px; color: var(--text-secondary); font-weight: 600; margin-bottom: 6px;">
+          💬 СОЦСЕТИ
         </div>
+        <div class="filters-grid">
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterAnySocial">С любой соцсетью</label>
+              <input type="checkbox" id="filterAnySocial">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">Есть хотя бы одна: TG, VK или WA</div>
+          </div>
 
-        <div class="filter-item">
-          <label for="filterSite">
-            <span>🌐</span> С сайтом
-          </label>
-          <input type="checkbox" id="filterSite">
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterTelegram">С Telegram</label>
+              <input type="checkbox" id="filterTelegram">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">Реальный TG (не @79995466000)</div>
+          </div>
         </div>
+      </div>
 
-        <div class="filter-item">
-          <label for="filterPhone">
-            <span>📞</span> С телефоном
-          </label>
-          <input type="checkbox" id="filterPhone">
+      <!-- Contacts -->
+      <div class="filter-section" style="margin-bottom: 12px;">
+        <div class="filter-section-title" style="font-size: 10px; color: var(--text-secondary); font-weight: 600; margin-bottom: 6px;">
+          📞 КОНТАКТЫ
         </div>
+        <div class="filters-grid">
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterPhone">С телефоном</label>
+              <input type="checkbox" id="filterPhone">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">Любой номер телефона</div>
+          </div>
 
-        <div class="filter-item">
-          <label for="filterEmail">
-            <span>✉️</span> С email
-          </label>
-          <input type="checkbox" id="filterEmail">
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterMobile">Только мобильные</label>
+              <input type="checkbox" id="filterMobile">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">Формат +79... (не городские)</div>
+          </div>
+
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterEmail">С email</label>
+              <input type="checkbox" id="filterEmail">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">Есть электронная почта</div>
+          </div>
+
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterSite">С сайтом</label>
+              <input type="checkbox" id="filterSite">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">СВОЙ сайт (не yclients/youtube)</div>
+          </div>
         </div>
+      </div>
 
-        <div class="filter-item">
-          <label for="filterRating">
-            <span>⭐</span> Мин. рейтинг
-          </label>
-          <input type="number" id="filterRating" min="0" max="5" step="0.1" value="0">
+      <!-- Quality filters -->
+      <div class="filter-section">
+        <div class="filter-section-title" style="font-size: 10px; color: var(--text-secondary); font-weight: 600; margin-bottom: 6px;">
+          ⭐ КАЧЕСТВО
+        </div>
+        <div class="filters-grid">
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterRating">Мин. рейтинг</label>
+              <input type="number" id="filterRating" min="0" max="5" step="0.1" value="0">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">От 0 до 5 (0 = все)</div>
+          </div>
+
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterMaxReviews">Макс. отзывов</label>
+              <input type="number" id="filterMaxReviews" min="0" max="10000" value="0" placeholder="0">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">0 = без лимита. &lt;100 = мелкий бизнес</div>
+          </div>
         </div>
       </div>
     </div>
