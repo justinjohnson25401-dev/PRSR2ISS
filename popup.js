@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Popup Script v2.6.0
+// 2GIS Parser Pro - Popup Script v2.7.0
 
 class ParserPopup {
   constructor() {
@@ -148,18 +148,22 @@ class ParserPopup {
       const historyEl = document.getElementById('pageHistory');
       const toggleEl = document.getElementById('historyToggle');
       if (this.historyExpanded) {
-        historyEl.style.display = 'block';
-        toggleEl.innerHTML = '📜 Скрыть историю страниц ▲';
+        historyEl.classList.add('active');
+        toggleEl.innerHTML = '📜 Скрыть историю ▲';
       } else {
-        historyEl.style.display = 'none';
-        toggleEl.innerHTML = '📜 Показать историю страниц ▼';
+        historyEl.classList.remove('active');
+        toggleEl.innerHTML = '📜 Показать историю ▼';
       }
     });
   }
 
   toggleSpecialOrderFields(show) {
     const fieldsContainer = document.getElementById('specialOrderFields');
-    fieldsContainer.style.display = show ? 'block' : 'none';
+    if (show) {
+      fieldsContainer.classList.add('active');
+    } else {
+      fieldsContainer.classList.remove('active');
+    }
   }
 
   saveFilters() {
@@ -267,17 +271,17 @@ class ParserPopup {
     if (!historyEl) return;
 
     if (this.pageHistory.length === 0) {
-      historyEl.innerHTML = '<div style="text-align: center; color: #999;">История пуста</div>';
+      historyEl.innerHTML = '<div class="history-item" style="text-align: center;">История пуста</div>';
       return;
     }
 
     // Show last 20 entries, reversed (newest first)
     const recentHistory = this.pageHistory.slice(-20).reverse();
     historyEl.innerHTML = recentHistory.map(item =>
-      `<div style="padding: 2px 0; border-bottom: 1px dotted #eee;">
-        <span style="color: #2196f3;">Стр. ${item.page}</span>:
+      `<div class="history-item">
+        <span class="page">Стр. ${item.page}</span>:
         <strong>${item.companies}</strong> комп.
-        <span style="color: #999; font-size: 9px;">(${item.time})</span>
+        <span style="font-size: 9px;">(${item.time})</span>
       </div>`
     ).join('');
   }
@@ -496,20 +500,20 @@ class ParserPopup {
   updateCollectingUI(collecting) {
     const btn = document.getElementById('autoCollectBtn');
     const statusPanel = document.getElementById('collectStatusPanel');
-    const intervalSelector = document.querySelector('.interval-selector');
+    const intervalRow = document.querySelector('.interval-row');
 
     if (collecting) {
       btn.classList.add('collecting');
       btn.querySelector('.text').textContent = 'Остановить сбор';
       btn.querySelector('.icon').textContent = '⏹️';
-      statusPanel.style.display = 'block';
-      intervalSelector.style.display = 'none'; // Hide interval selector during collection
+      statusPanel.classList.add('active');
+      if (intervalRow) intervalRow.style.display = 'none';
     } else {
       btn.classList.remove('collecting');
       btn.querySelector('.text').textContent = 'Собрать все страницы';
-      btn.querySelector('.icon').textContent = '🔄';
-      statusPanel.style.display = 'none';
-      intervalSelector.style.display = 'flex'; // Show interval selector
+      btn.querySelector('.icon').textContent = '🚀';
+      statusPanel.classList.remove('active');
+      if (intervalRow) intervalRow.style.display = 'flex';
     }
   }
 
@@ -521,13 +525,13 @@ class ParserPopup {
     const scrollProgressEl = document.getElementById('scrollProgress');
     const scrollStatusEl = document.getElementById('scrollStatusText');
 
-    if (data.page !== undefined) currentPageEl.textContent = data.page;
-    if (data.lastSuccess !== undefined) lastSuccessEl.textContent = data.lastSuccess;
-    if (data.totalCompanies !== undefined) totalCompaniesEl.textContent = data.totalCompanies;
-    if (data.scrollProgress !== undefined) {
+    if (currentPageEl && data.page !== undefined) currentPageEl.textContent = data.page;
+    if (lastSuccessEl && data.lastSuccess !== undefined) lastSuccessEl.textContent = data.lastSuccess;
+    if (totalCompaniesEl && data.totalCompanies !== undefined) totalCompaniesEl.textContent = data.totalCompanies;
+    if (scrollProgressEl && data.scrollProgress !== undefined) {
       scrollProgressEl.style.width = data.scrollProgress + '%';
     }
-    if (data.scrollStatus !== undefined) {
+    if (scrollStatusEl && data.scrollStatus !== undefined) {
       scrollStatusEl.textContent = data.scrollStatus;
     }
   }
@@ -710,13 +714,13 @@ class ParserPopup {
   }
 
   // Build the auto-collect script as a string (avoids Chrome serialization issues)
-  // v2.5.0: Smooth scrolling over entire interval duration
+  // v2.7.0: Smooth scrolling over entire interval duration
   buildAutoCollectScript() {
     const intervalSeconds = this.collectInterval;
 
     return `
       (async function() {
-        console.log('=== [2GIS Parser v2.5.0] Script started! ===');
+        console.log('=== [2GIS Parser v2.7.0] Script started! ===');
 
         // Configuration
         var SCROLL_DURATION_MS = ${intervalSeconds * 1000}; // Smooth scroll takes the entire interval

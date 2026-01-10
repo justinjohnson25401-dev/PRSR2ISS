@@ -1,4 +1,4 @@
-// 2GIS Parser Pro - Background Service Worker v2.4.0
+// 2GIS Parser Pro - Background Service Worker v2.7.0
 // Без внешней телеметрии, все данные хранятся локально
 
 // xlsx-js-style for styled Excel export
@@ -610,6 +610,83 @@ function isValidTelegramUsername(username) {
   return true;
 }
 
+// Check if URL is company's OWN website (not a third-party service)
+// Returns false for: YouTube, Instagram, yclients, booking services, social networks, etc.
+function isOwnWebsite(url) {
+  if (!url) return false;
+
+  const urlLower = url.toLowerCase();
+
+  // List of third-party services that are NOT own websites
+  const thirdPartyDomains = [
+    // Social networks
+    'youtube.com', 'youtu.be',
+    'instagram.com', 'instagr.am',
+    'facebook.com', 'fb.com', 'fb.me',
+    'twitter.com', 'x.com',
+    'tiktok.com',
+    'pinterest.com',
+    'linkedin.com',
+    'ok.ru', 'odnoklassniki.ru',
+    'vk.com', 'vkontakte.ru',
+    't.me', 'telegram.me',
+    // Booking & CRM services (for beauty salons, etc.)
+    'yclients.com', 'y-clients.com', 'yclient.com',
+    'dikidi.net', 'dikidi.ru',
+    'profi.ru',
+    'zoon.ru',
+    'beauty.dikidi.net',
+    'n242926.yclients.com', // yclients subdomains
+    'bookform.ru',
+    'hesus.ru',
+    // Aggregators
+    '2gis.ru', '2gis.com',
+    'yandex.ru/maps', 'maps.yandex',
+    'google.com/maps', 'maps.google',
+    'tripadvisor.com',
+    'booking.com',
+    'airbnb.com',
+    // Marketplaces
+    'avito.ru',
+    'wildberries.ru',
+    'ozon.ru',
+    'market.yandex.ru',
+    // Messengers
+    'wa.me', 'whatsapp.com',
+    'viber.com',
+    // Other services
+    'taplink.cc', 'taplink.ru',
+    'linktr.ee', 'linktree.com',
+    'mssg.me',
+    'telega.one'
+  ];
+
+  // Check if URL contains any third-party domain
+  for (const domain of thirdPartyDomains) {
+    if (urlLower.includes(domain)) {
+      return false;
+    }
+  }
+
+  // Check for yclients subdomains pattern (*.yclients.com)
+  if (/\.yclients\.(com|ru)/i.test(urlLower)) {
+    return false;
+  }
+
+  // Check for dikidi subdomains
+  if (/\.dikidi\.(net|ru)/i.test(urlLower)) {
+    return false;
+  }
+
+  return true;
+}
+
+// Check if company has its OWN website (not just third-party links)
+function hasOwnWebsite(urls) {
+  if (!urls || !Array.isArray(urls) || urls.length === 0) return false;
+  return urls.some(url => isOwnWebsite(url));
+}
+
 function applyFilters(items, filters) {
   if (!filters) return items;
 
@@ -635,9 +712,9 @@ function applyFilters(items, filters) {
       if (!item.emails || item.emails.length === 0) return false;
     }
 
-    // Website filter
+    // Website filter - now checks for OWN website (not YouTube/Instagram/yclients etc.)
     if (filters.onlyWithSite) {
-      if (!item.urls || item.urls.length === 0) return false;
+      if (!hasOwnWebsite(item.urls)) return false;
     }
 
     // Telegram filter - now checks for REAL telegram username (not phone numbers)
@@ -655,10 +732,11 @@ function applyFilters(items, filters) {
       if (!hasRealTelegram && !hasVK && !hasWhatsApp) return false;
     }
 
-    // No website but has social network - target for web development offers
+    // No OWN website but has social network - target for web development offers
+    // Companies with only yclients/youtube/instagram are included (they need a real site!)
     if (filters.noSiteWithSocial) {
-      // Must NOT have a website
-      if (item.urls && item.urls.length > 0) return false;
+      // Must NOT have an OWN website (yclients/youtube/instagram don't count)
+      if (hasOwnWebsite(item.urls)) return false;
       // Must have at least one social network
       const hasRealTelegram = item.telegram && isValidTelegramUsername(item.telegramUsername);
       const hasVK = !!item.vk;
@@ -1311,7 +1389,13 @@ async function handleMessage(message, sendResponse) {
       const withPhones = uniqueItems.filter(i => i.contacts && i.contacts.length > 0).length;
       const withMobilePhones = uniqueItems.filter(i => i.mobilePhones && i.mobilePhones.length > 0).length;
       const withEmails = uniqueItems.filter(i => i.emails && i.emails.length > 0).length;
-      const withSites = uniqueItems.filter(i => i.urls && i.urls.length > 0).length;
+
+      // With any URL (including youtube/yclients etc.)
+      const withAnyUrl = uniqueItems.filter(i => i.urls && i.urls.length > 0).length;
+
+      // With OWN website (excluding youtube/instagram/yclients etc.) - this is what matters!
+      const withOwnSites = uniqueItems.filter(i => hasOwnWebsite(i.urls)).length;
+
       const withTelegram = uniqueItems.filter(i => i.telegram).length;
       const withRealTelegram = uniqueItems.filter(i => i.telegram && isValidTelegramUsername(i.telegramUsername)).length;
       const withVK = uniqueItems.filter(i => i.vk).length;
@@ -1322,14 +1406,15 @@ async function handleMessage(message, sendResponse) {
         (i.telegram && isValidTelegramUsername(i.telegramUsername)) || i.vk || i.whatsapp
       ).length;
 
-      // Без сайта но с соцсетью - целевая аудитория для веб-разработки
-      const noSiteWithSocial = uniqueItems.filter(i =>
-        (!i.urls || i.urls.length === 0) &&
+      // Без СВОЕГО сайта но с соцсетью - целевая аудитория для веб-разработки
+      // Компании с только yclients/youtube/instagram тоже попадают сюда (им нужен настоящий сайт!)
+      const noOwnSiteWithSocial = uniqueItems.filter(i =>
+        !hasOwnWebsite(i.urls) &&
         ((i.telegram && isValidTelegramUsername(i.telegramUsername)) || i.vk || i.whatsapp)
       ).length;
 
-      // Без сайта вообще
-      const noSite = uniqueItems.filter(i => !i.urls || i.urls.length === 0).length;
+      // Без своего сайта вообще
+      const noOwnSite = uniqueItems.filter(i => !hasOwnWebsite(i.urls)).length;
 
       sendResponse({
         status: 'ok',
@@ -1338,14 +1423,15 @@ async function handleMessage(message, sendResponse) {
           withPhones,
           withMobilePhones,
           withEmails,
-          withSites,
-          noSite,
+          withSites: withOwnSites,  // Now shows OWN websites only
+          withAnyUrl,               // All URLs including third-party
+          noSite: noOwnSite,        // No OWN site
           withTelegram,
           withRealTelegram,
           withVK,
           withWhatsApp,
           withAnySocial,
-          noSiteWithSocial
+          noSiteWithSocial: noOwnSiteWithSocial  // No OWN site + has social
         }
       });
       break;

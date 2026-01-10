@@ -6,20 +6,19 @@
   <title>2GIS Parser Pro</title>
   <style>
     :root {
-      --primary: #00a651;
-      --primary-dark: #008c45;
-      --primary-light: #e8f5e9;
-      --danger: #e53935;
-      --danger-light: #ffebee;
-      --warning: #ff9800;
-      --blue: #2196f3;
-      --blue-light: #e3f2fd;
-      --text: #333;
-      --text-secondary: #666;
-      --bg: #ffffff;
-      --bg-secondary: #f5f5f5;
-      --border: #e0e0e0;
-      --shadow: 0 2px 8px rgba(0,0,0,0.1);
+      --bg-dark: #1a1a2e;
+      --bg-card: #16213e;
+      --bg-input: #0f3460;
+      --bg-hover: #1f4068;
+      --accent: #00d9ff;
+      --accent-green: #00e676;
+      --accent-orange: #ff9100;
+      --accent-red: #ff5252;
+      --text-primary: #e8e8e8;
+      --text-secondary: #a0a0a0;
+      --text-muted: #6b6b6b;
+      --border: #2a3f5f;
+      --shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     }
 
     * {
@@ -29,604 +28,606 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      width: 340px;
-      background: var(--bg);
-      color: var(--text);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      width: 500px;
+      height: 500px;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      overflow-y: auto;
     }
 
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-dark);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent);
+    }
+
+    /* Header */
     .header {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-      color: white;
-      padding: 14px;
-      text-align: center;
+      background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-input) 100%);
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
     }
 
-    .header h1 {
-      font-size: 17px;
-      font-weight: 600;
+    .header-left h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
       margin-bottom: 2px;
     }
 
-    .header .version {
-      font-size: 10px;
-      opacity: 0.8;
+    .header-left .version {
+      font-size: 11px;
+      color: var(--text-muted);
     }
 
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      padding: 12px;
-      background: var(--bg-secondary);
+    .header-right {
+      text-align: right;
     }
 
-    .stat-card {
-      background: white;
-      border-radius: 6px;
-      padding: 8px 4px;
-      text-align: center;
-      box-shadow: var(--shadow);
-    }
-
-    .stat-card .number {
-      font-size: 18px;
+    .total-count {
+      font-size: 28px;
       font-weight: 700;
-      color: var(--primary);
+      color: var(--accent-green);
+      line-height: 1;
     }
 
-    .stat-card .label {
+    .total-label {
+      font-size: 10px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Main content */
+    .main {
+      padding: 16px 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .stat-item {
+      background: var(--bg-card);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+    }
+
+    .stat-item:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .stat-item .icon {
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+
+    .stat-item .value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .stat-item .label {
       font-size: 9px;
       color: var(--text-secondary);
+      text-transform: uppercase;
       margin-top: 2px;
     }
 
-    .stat-card.blue .number { color: var(--blue); }
-    .stat-card.orange .number { color: var(--warning); }
-
-    .content {
-      padding: 12px;
+    .stat-item.highlight {
+      background: linear-gradient(135deg, rgba(255, 145, 0, 0.2) 0%, rgba(255, 82, 82, 0.1) 100%);
+      border-color: var(--accent-orange);
     }
 
-    .section-title {
+    .stat-item.highlight .value {
+      color: var(--accent-orange);
+    }
+
+    /* Section */
+    .section {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 14px;
+      border: 1px solid var(--border);
+    }
+
+    .section-header {
       font-size: 11px;
       font-weight: 600;
       color: var(--text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 8px;
-    }
-
-    .export-buttons {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
       gap: 6px;
-      margin-bottom: 12px;
     }
 
-    .btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 10px 6px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      font-family: inherit;
-    }
-
-    .btn-export {
-      background: var(--primary-light);
-      color: var(--primary-dark);
-    }
-
-    .btn-export:hover {
-      background: var(--primary);
-      color: white;
-      transform: translateY(-1px);
-    }
-
-    .btn-export .icon {
-      font-size: 18px;
-      margin-bottom: 2px;
-    }
-
-    .btn-export .text {
-      font-size: 10px;
-      font-weight: 500;
-    }
-
-    .filters {
-      background: var(--bg-secondary);
-      border-radius: 6px;
-      padding: 10px;
-      margin-bottom: 12px;
-    }
-
-    .filter-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 6px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .filter-row:last-child {
-      border-bottom: none;
-    }
-
-    .filter-row label {
-      font-size: 11px;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .filter-row label .icon {
-      font-size: 12px;
-    }
-
-    .filter-row input[type="number"] {
-      width: 50px;
-      padding: 3px 6px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      font-size: 11px;
-      text-align: center;
-    }
-
-    .filter-row input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
-      accent-color: var(--primary);
-    }
-
-    .filter-hint {
-      font-size: 9px;
-      color: var(--text-secondary);
-      padding: 6px 0 0;
-      border-top: 1px dashed var(--border);
-      margin-top: 6px;
-    }
-
-    .actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
-      margin-bottom: 10px;
-    }
-
-    .btn-action {
-      padding: 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 500;
-    }
-
-    .btn-secondary {
-      background: var(--bg-secondary);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-
-    .btn-secondary:hover {
-      background: var(--border);
-    }
-
-    .btn-danger {
-      background: var(--danger-light);
-      color: var(--danger);
-    }
-
-    .btn-danger:hover {
-      background: var(--danger);
-      color: white;
-    }
-
-    .status {
-      padding: 8px;
-      border-radius: 5px;
-      font-size: 11px;
-      text-align: center;
-      margin-bottom: 10px;
-      display: none;
-    }
-
-    .status.success {
-      display: block;
-      background: var(--primary-light);
-      color: var(--primary-dark);
-    }
-
-    .status.error {
-      display: block;
-      background: var(--danger-light);
-      color: var(--danger);
-    }
-
-    .status.warning {
-      display: block;
-      background: #fff3e0;
-      color: var(--warning);
-    }
-
-    .footer {
-      padding: 10px 12px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      justify-content: center;
-      gap: 14px;
-    }
-
-    .footer-link {
-      font-size: 10px;
-      color: var(--text-secondary);
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      gap: 3px;
-      cursor: pointer;
-    }
-
-    .footer-link:hover {
-      color: var(--primary);
-    }
-
-    .divider {
-      height: 1px;
-      background: var(--border);
-      margin: 8px 0;
-    }
-
-    .filter-group-title {
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      margin: 8px 0 4px;
-      padding-top: 6px;
-      border-top: 1px dashed var(--border);
-    }
-
-    .filter-group-title:first-child {
-      border-top: none;
-      margin-top: 0;
-      padding-top: 0;
-    }
-
-    .city-selector {
-      margin-bottom: 12px;
-    }
-
-    .city-selector select {
+    /* Auto-collect Button */
+    .btn-collect {
       width: 100%;
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 13px;
-      font-family: inherit;
-      background: white;
-      color: var(--text);
-      cursor: pointer;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-    }
-
-    .city-selector select:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 2px var(--primary-light);
-    }
-
-    .export-buttons.single {
-      grid-template-columns: 1fr;
-    }
-
-    .btn-export-large {
-      flex-direction: row;
-      gap: 8px;
       padding: 14px 20px;
-    }
-
-    .btn-export-large .icon {
-      font-size: 20px;
-      margin-bottom: 0;
-    }
-
-    .btn-export-large .text {
+      background: linear-gradient(135deg, var(--accent) 0%, #0099cc 100%);
+      color: var(--bg-dark);
+      border: none;
+      border-radius: 10px;
       font-size: 14px;
-      font-weight: 600;
-    }
-
-    /* Auto-collect section */
-    .auto-collect-section {
-      margin-bottom: 12px;
-    }
-
-    .btn-auto-collect {
-      width: 100%;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
       display: flex;
-      flex-direction: row;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      padding: 12px 16px;
-      background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
+      gap: 10px;
     }
 
-    .btn-auto-collect:hover {
-      background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+    .btn-collect:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 217, 255, 0.3);
     }
 
-    .btn-auto-collect:disabled {
-      background: #bdbdbd;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-
-    .btn-auto-collect.collecting {
-      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+    .btn-collect.collecting {
+      background: linear-gradient(135deg, var(--accent-orange) 0%, #cc7000 100%);
       animation: pulse 1.5s infinite;
     }
 
     @keyframes pulse {
       0%, 100% { opacity: 1; }
-      50% { opacity: 0.8; }
+      50% { opacity: 0.7; }
     }
 
-    .btn-auto-collect .icon {
-      font-size: 16px;
+    .btn-collect .icon {
+      font-size: 18px;
     }
 
-    .auto-collect-status {
+    .collect-status {
+      text-align: center;
       font-size: 11px;
       color: var(--text-secondary);
-      text-align: center;
-      margin-top: 6px;
+      margin-top: 8px;
       min-height: 16px;
     }
 
-    .auto-collect-status.error {
-      color: var(--danger);
-    }
+    .collect-status.error { color: var(--accent-red); }
+    .collect-status.success { color: var(--accent-green); }
 
-    .auto-collect-status.success {
-      color: var(--primary);
-    }
-
-    .auto-collect-settings {
-      display: flex;
-      gap: 12px;
-      margin-top: 8px;
-      padding: 8px;
-      background: var(--bg-secondary);
-      border-radius: 6px;
-    }
-
-    .auto-collect-settings label {
+    /* Interval selector */
+    .interval-row {
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      color: var(--text-secondary);
-      flex: 1;
-    }
-
-    .auto-collect-settings input {
-      width: 55px;
-      padding: 4px 6px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      font-size: 11px;
-      text-align: center;
-    }
-
-    /* Export settings */
-    .export-settings {
-      margin-bottom: 12px;
-    }
-
-    .setting-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 8px;
-    }
-
-    .setting-row label {
-      font-size: 12px;
-      color: var(--text);
-      flex-shrink: 0;
-    }
-
-    .text-input {
-      flex: 1;
-      margin-left: 10px;
-      padding: 8px 10px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 12px;
-      font-family: inherit;
-    }
-
-    .text-input:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 2px var(--primary-light);
-    }
-
-    .number-input {
-      width: 80px;
-      padding: 8px 10px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 12px;
-      text-align: center;
-    }
-
-    .number-input:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 2px var(--primary-light);
-    }
-
-    /* Special order section */
-    .special-order-section {
-      background: var(--bg-secondary);
-      border-radius: 6px;
-      padding: 10px;
-      margin-bottom: 12px;
-    }
-
-    .special-order-fields {
+      justify-content: center;
+      gap: 10px;
       margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px dashed var(--border);
     }
 
-    .setting-hint {
-      font-size: 9px;
+    .interval-row label {
+      font-size: 11px;
       color: var(--text-secondary);
+    }
+
+    .interval-row select {
+      padding: 6px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    /* Status Panel */
+    .status-panel {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      background: var(--bg-input);
+      border-radius: 8px;
+      font-size: 11px;
+    }
+
+    .status-panel.active {
+      display: block;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .status-row:last-child {
+      border-bottom: none;
+    }
+
+    .status-row strong {
+      color: var(--accent);
+    }
+
+    .progress-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-green) 100%);
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .progress-text {
       text-align: center;
+      font-size: 10px;
+      color: var(--text-muted);
       margin-top: 4px;
     }
 
-    /* Telegram icon */
-    .tg-icon {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232196f3'%3E%3Cpath d='M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.009-1.252-.242-1.865-.442-.751-.244-1.349-.374-1.297-.789.027-.216.324-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.015 3.333-1.386 4.025-1.627 4.477-1.635.099-.002.321.023.465.141.121.1.155.234.17.331.015.098.034.321.019.495z'/%3E%3C/svg%3E");
-      background-size: contain;
-      background-repeat: no-repeat;
-      vertical-align: middle;
+    /* Export Section */
+    .export-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .input-group label {
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .input-group input,
+    .input-group select {
+      padding: 10px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 12px;
+    }
+
+    .input-group input:focus,
+    .input-group select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .btn-export {
+      padding: 12px 24px;
+      background: linear-gradient(135deg, var(--accent-green) 0%, #00b859 100%);
+      color: var(--bg-dark);
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn-export:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 230, 118, 0.3);
+    }
+
+    /* Filters */
+    .filters-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .filter-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: var(--bg-input);
+      border-radius: 8px;
+      font-size: 11px;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .filter-item:hover {
+      border-color: var(--border);
+    }
+
+    .filter-item label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .filter-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .filter-item input[type="number"] {
+      width: 50px;
+      padding: 4px 8px;
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .filter-item.target {
+      background: linear-gradient(135deg, rgba(255, 145, 0, 0.2) 0%, rgba(255, 82, 82, 0.1) 100%);
+      border-color: var(--accent-orange);
+      grid-column: span 2;
+    }
+
+    .filter-item.target label {
+      color: var(--accent-orange);
+      font-weight: 600;
+    }
+
+    /* Actions */
+    .actions-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn-action {
+      padding: 10px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: var(--bg-input);
+      color: var(--text-primary);
+    }
+
+    .btn-action:hover {
+      border-color: var(--accent);
+      background: var(--bg-hover);
+    }
+
+    .btn-action.danger {
+      border-color: rgba(255, 82, 82, 0.3);
+    }
+
+    .btn-action.danger:hover {
+      border-color: var(--accent-red);
+      background: rgba(255, 82, 82, 0.1);
+      color: var(--accent-red);
+    }
+
+    /* Status message */
+    .status-message {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 11px;
+      text-align: center;
+      display: none;
+    }
+
+    .status-message.success {
+      display: block;
+      background: rgba(0, 230, 118, 0.1);
+      color: var(--accent-green);
+      border: 1px solid rgba(0, 230, 118, 0.3);
+    }
+
+    .status-message.error {
+      display: block;
+      background: rgba(255, 82, 82, 0.1);
+      color: var(--accent-red);
+      border: 1px solid rgba(255, 82, 82, 0.3);
+    }
+
+    .status-message.warning {
+      display: block;
+      background: rgba(255, 145, 0, 0.1);
+      color: var(--accent-orange);
+      border: 1px solid rgba(255, 145, 0, 0.3);
+    }
+
+    /* Footer */
+    .footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .footer-link {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .footer-link:hover {
+      color: var(--accent);
+    }
+
+    /* Special Order Toggle */
+    .special-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: var(--bg-input);
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+
+    .special-toggle label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .special-fields {
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .special-fields.active {
+      display: grid;
+    }
+
+    /* History toggle */
+    .history-toggle {
+      cursor: pointer;
+      color: var(--accent);
+      text-align: center;
+      font-size: 10px;
+      padding: 6px;
+      margin-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .history-toggle:hover {
+      color: var(--accent-green);
+    }
+
+    .page-history {
+      display: none;
+      max-height: 80px;
+      overflow-y: auto;
+      margin-top: 6px;
+      font-size: 10px;
+    }
+
+    .page-history.active {
+      display: block;
+    }
+
+    .history-item {
+      padding: 3px 0;
+      border-bottom: 1px dotted var(--border);
+      color: var(--text-secondary);
+    }
+
+    .history-item .page {
+      color: var(--accent);
     }
   </style>
 </head>
 <body>
+  <!-- Header -->
   <div class="header">
-    <h1>2GIS Parser Pro</h1>
-    <div class="version">v2.6.0</div>
-  </div>
-
-  <!-- Compact Stats with Percentages -->
-  <div class="stats-compact" style="padding: 10px 12px; background: #f8f9fa; font-size: 11px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-      <span style="font-weight: 600; color: #333;">📊 Собрано компаний:</span>
-      <span style="font-size: 16px; font-weight: 700; color: #00a651;" id="totalCount">0</span>
+    <div class="header-left">
+      <h1>2GIS Parser Pro</h1>
+      <div class="version">v2.7.0</div>
     </div>
-
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; color: #555;">
-      <div style="display: flex; justify-content: space-between;">
-        <span>🌐 Сайты:</span>
-        <span id="statSites">0/0</span>
-      </div>
-      <div style="display: flex; justify-content: space-between;">
-        <span>📱 Мобильные:</span>
-        <span id="statMobile">0/0</span>
-      </div>
-      <div style="display: flex; justify-content: space-between;">
-        <span>💬 Telegram:</span>
-        <span id="statTelegram">0/0</span>
-      </div>
-      <div style="display: flex; justify-content: space-between;">
-        <span>📘 VK:</span>
-        <span id="statVK">0/0</span>
-      </div>
-      <div style="display: flex; justify-content: space-between;">
-        <span>📲 WhatsApp:</span>
-        <span id="statWhatsApp">0/0</span>
-      </div>
-      <div style="display: flex; justify-content: space-between;">
-        <span>📧 Email:</span>
-        <span id="statEmail">0/0</span>
-      </div>
-    </div>
-
-    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd;">
-      <div style="display: flex; justify-content: space-between; color: #e65100; font-weight: 500;">
-        <span>🎯 Без сайта + соцсеть:</span>
-        <span id="statTarget">0/0</span>
-      </div>
+    <div class="header-right">
+      <div class="total-count" id="totalCount">0</div>
+      <div class="total-label">Компаний</div>
     </div>
   </div>
 
-  <div class="content">
-    <div id="status" class="status"></div>
+  <div class="main">
+    <!-- Status Message -->
+    <div id="status" class="status-message"></div>
 
-    <div class="section-title">Настройки экспорта</div>
-    <div class="export-settings">
-      <div class="setting-row">
-        <label for="categoryInput">📁 Категория:</label>
-        <input type="text" id="categoryInput" placeholder="Салоны красоты" class="text-input">
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="icon">🌐</div>
+        <div class="value" id="statSites">0/0</div>
+        <div class="label">Свой сайт</div>
+      </div>
+      <div class="stat-item">
+        <div class="icon">📱</div>
+        <div class="value" id="statMobile">0/0</div>
+        <div class="label">Мобильные</div>
+      </div>
+      <div class="stat-item">
+        <div class="icon">💬</div>
+        <div class="value" id="statTelegram">0/0</div>
+        <div class="label">Telegram</div>
+      </div>
+      <div class="stat-item">
+        <div class="icon">📘</div>
+        <div class="value" id="statVK">0/0</div>
+        <div class="label">VK</div>
+      </div>
+      <div class="stat-item">
+        <div class="icon">📲</div>
+        <div class="value" id="statWhatsApp">0/0</div>
+        <div class="label">WhatsApp</div>
+      </div>
+      <div class="stat-item highlight">
+        <div class="icon">🎯</div>
+        <div class="value" id="statTarget">0/0</div>
+        <div class="label">Целевые</div>
       </div>
     </div>
 
-    <div class="section-title">Город для расчета расстояния</div>
-    <div class="city-selector">
-      <select id="citySelect">
-        <option value="Москва">Москва</option>
-        <option value="Санкт-Петербург">Санкт-Петербург</option>
-        <option value="Новосибирск">Новосибирск</option>
-        <option value="Екатеринбург">Екатеринбург</option>
-        <option value="Казань">Казань</option>
-        <option value="Нижний Новгород">Нижний Новгород</option>
-        <option value="Челябинск">Челябинск</option>
-        <option value="Самара">Самара</option>
-        <option value="Омск">Омск</option>
-        <option value="Ростов-на-Дону">Ростов-на-Дону</option>
-        <option value="Уфа">Уфа</option>
-        <option value="Красноярск">Красноярск</option>
-        <option value="Воронеж">Воронеж</option>
-        <option value="Пермь">Пермь</option>
-        <option value="Волгоград">Волгоград</option>
-      </select>
-    </div>
-
-    <div class="special-order-section">
-      <div class="filter-row">
-        <label><span class="icon">⚙️</span> Спецзаказ (ручные настройки)</label>
-        <input type="checkbox" id="specialOrderCheck">
-      </div>
-      <div class="special-order-fields" id="specialOrderFields" style="display: none;">
-        <div class="setting-row">
-          <label for="customCity">🏙️ Город (вручную):</label>
-          <input type="text" id="customCity" placeholder="Введите город" class="text-input">
-        </div>
-        <div class="setting-row">
-          <label for="customPackSize">📦 Записей в файле:</label>
-          <input type="number" id="customPackSize" min="100" max="50000" value="1000" class="number-input">
-        </div>
-        <div class="setting-hint">По умолчанию: 1000 записей в файле</div>
-      </div>
-    </div>
-
-    <div class="section-title">Сбор данных</div>
-    <div class="auto-collect-section">
-      <button class="btn btn-auto-collect" id="autoCollectBtn">
-        <span class="icon">🔄</span>
+    <!-- Auto-Collect Section -->
+    <div class="section">
+      <div class="section-header">🔄 Сбор данных</div>
+      <button class="btn-collect" id="autoCollectBtn">
+        <span class="icon">🚀</span>
         <span class="text">Собрать все страницы</span>
       </button>
-      <div class="auto-collect-status" id="autoCollectStatus"></div>
+      <div class="collect-status" id="autoCollectStatus"></div>
 
-      <!-- Interval selector -->
-      <div class="interval-selector" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px;">
-        <label style="font-size: 11px; color: #666;">⏱️ Интервал:</label>
-        <select id="intervalSelect" style="padding: 4px 8px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px; background: white;">
+      <div class="interval-row">
+        <label>Интервал:</label>
+        <select id="intervalSelect">
           <option value="15">15 сек</option>
           <option value="20" selected>20 сек</option>
           <option value="25">25 сек</option>
@@ -634,108 +635,151 @@
         </select>
       </div>
 
-      <!-- Status panel - hidden when not collecting -->
-      <div id="collectStatusPanel" class="collect-status-panel" style="display: none; margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 6px; font-size: 11px;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+      <!-- Status Panel (shown during collection) -->
+      <div id="collectStatusPanel" class="status-panel">
+        <div class="status-row">
           <span>📄 Текущая страница:</span>
           <strong id="currentPageNum">0</strong>
         </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+        <div class="status-row">
           <span>✅ Последняя успешная:</span>
           <strong id="lastSuccessPage">0</strong>
         </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+        <div class="status-row">
           <span>🏢 Всего компаний:</span>
           <strong id="totalCompaniesCollected">0</strong>
         </div>
-
-        <!-- Progress bar -->
-        <div style="background: #e0e0e0; border-radius: 4px; height: 6px; margin-top: 8px; overflow: hidden;">
-          <div id="scrollProgress" style="background: linear-gradient(90deg, #2196f3, #1976d2); height: 100%; width: 0%; transition: width 0.3s;"></div>
+        <div class="progress-bar">
+          <div class="progress-bar-fill" id="scrollProgress"></div>
         </div>
-        <div style="text-align: center; color: #888; font-size: 10px; margin-top: 4px;" id="scrollStatusText">Ожидание...</div>
+        <div class="progress-text" id="scrollStatusText">Ожидание...</div>
 
-        <!-- History toggle -->
-        <div style="margin-top: 8px; border-top: 1px dashed #ddd; padding-top: 8px;">
-          <div id="historyToggle" style="cursor: pointer; color: #2196f3; text-align: center; font-size: 10px;">
-            📜 Показать историю страниц ▼
-          </div>
-          <div id="pageHistory" style="display: none; max-height: 100px; overflow-y: auto; margin-top: 6px; font-size: 10px; color: #666;">
-            <!-- History items will be added here -->
-          </div>
+        <div class="history-toggle" id="historyToggle">📜 Показать историю ▼</div>
+        <div class="page-history" id="pageHistory"></div>
+      </div>
+    </div>
+
+    <!-- Export Section -->
+    <div class="section">
+      <div class="section-header">📊 Экспорт</div>
+      <div class="export-row">
+        <div class="input-group">
+          <label>Категория:</label>
+          <input type="text" id="categoryInput" placeholder="Салоны красоты">
+        </div>
+        <button class="btn-export" id="downloadXlsx">
+          <span>📥</span> XLSX
+        </button>
+      </div>
+
+      <div class="special-toggle">
+        <label><span>⚙️</span> Спецзаказ (ручные настройки)</label>
+        <input type="checkbox" id="specialOrderCheck">
+      </div>
+
+      <div class="special-fields" id="specialOrderFields">
+        <div class="input-group">
+          <label>Город (вручную):</label>
+          <input type="text" id="customCity" placeholder="Москва">
+        </div>
+        <div class="input-group">
+          <label>Записей в файле:</label>
+          <input type="number" id="customPackSize" min="100" max="50000" value="1000">
+        </div>
+      </div>
+
+      <div class="input-group" style="margin-top: 10px;">
+        <label>Город для расстояния:</label>
+        <select id="citySelect">
+          <option value="Москва">Москва</option>
+          <option value="Санкт-Петербург">Санкт-Петербург</option>
+          <option value="Новосибирск">Новосибирск</option>
+          <option value="Екатеринбург">Екатеринбург</option>
+          <option value="Казань">Казань</option>
+          <option value="Нижний Новгород">Нижний Новгород</option>
+          <option value="Челябинск">Челябинск</option>
+          <option value="Самара">Самара</option>
+          <option value="Омск">Омск</option>
+          <option value="Ростов-на-Дону">Ростов-на-Дону</option>
+          <option value="Уфа">Уфа</option>
+          <option value="Красноярск">Красноярск</option>
+          <option value="Воронеж">Воронеж</option>
+          <option value="Пермь">Пермь</option>
+          <option value="Волгоград">Волгоград</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="section">
+      <div class="section-header">🔍 Фильтры</div>
+      <div class="filters-grid">
+        <div class="filter-item target">
+          <label for="filterNoSiteWithSocial">
+            <span>🎯</span> Без сайта + соцсеть
+          </label>
+          <input type="checkbox" id="filterNoSiteWithSocial">
+        </div>
+
+        <div class="filter-item">
+          <label for="filterAnySocial">
+            <span>💬</span> С соцсетью
+          </label>
+          <input type="checkbox" id="filterAnySocial">
+        </div>
+
+        <div class="filter-item">
+          <label for="filterTelegram">
+            <span>✈️</span> Telegram
+          </label>
+          <input type="checkbox" id="filterTelegram">
+        </div>
+
+        <div class="filter-item">
+          <label for="filterMobile">
+            <span>📱</span> Мобильный
+          </label>
+          <input type="checkbox" id="filterMobile">
+        </div>
+
+        <div class="filter-item">
+          <label for="filterSite">
+            <span>🌐</span> С сайтом
+          </label>
+          <input type="checkbox" id="filterSite">
+        </div>
+
+        <div class="filter-item">
+          <label for="filterPhone">
+            <span>📞</span> С телефоном
+          </label>
+          <input type="checkbox" id="filterPhone">
+        </div>
+
+        <div class="filter-item">
+          <label for="filterEmail">
+            <span>✉️</span> С email
+          </label>
+          <input type="checkbox" id="filterEmail">
+        </div>
+
+        <div class="filter-item">
+          <label for="filterRating">
+            <span>⭐</span> Мин. рейтинг
+          </label>
+          <input type="number" id="filterRating" min="0" max="5" step="0.1" value="0">
         </div>
       </div>
     </div>
 
-    <div class="section-title">Экспорт данных</div>
-    <div class="export-buttons single">
-      <button class="btn btn-export btn-export-large" id="downloadXlsx">
-        <span class="icon">📊</span>
-        <span class="text">Скачать XLSX</span>
-      </button>
-    </div>
-
-    <div class="section-title">Фильтры</div>
-    <div class="filters">
-      <div class="filter-group-title">🎯 Целевые (для продаж)</div>
-
-      <div class="filter-row" style="background: #fff3e0; margin: -2px -10px; padding: 6px 10px;">
-        <label><span class="icon">🎯</span> Без сайта + соцсеть</label>
-        <input type="checkbox" id="filterNoSiteWithSocial">
-      </div>
-
-      <div class="filter-row">
-        <label><span class="icon">💬</span> С любой соцсетью</label>
-        <input type="checkbox" id="filterAnySocial">
-      </div>
-
-      <div class="filter-group-title">Соцсети</div>
-
-      <div class="filter-row">
-        <label><span class="icon tg-icon"></span> С Telegram</label>
-        <input type="checkbox" id="filterTelegram">
-      </div>
-
-      <div class="filter-group-title">Контакты</div>
-
-      <div class="filter-row">
-        <label><span class="icon">📱</span> Только мобильные (+79...)</label>
-        <input type="checkbox" id="filterMobile">
-      </div>
-
-      <div class="filter-row">
-        <label><span class="icon">📞</span> С любым телефоном</label>
-        <input type="checkbox" id="filterPhone">
-      </div>
-
-      <div class="filter-row">
-        <label><span class="icon">✉️</span> С email</label>
-        <input type="checkbox" id="filterEmail">
-      </div>
-
-      <div class="filter-row">
-        <label><span class="icon">🌐</span> С сайтом</label>
-        <input type="checkbox" id="filterSite">
-      </div>
-
-      <div class="filter-group-title">Рейтинг</div>
-
-      <div class="filter-row">
-        <label><span class="icon">⭐</span> Мин. рейтинг</label>
-        <input type="number" id="filterRating" min="0" max="5" step="0.1" value="0">
-      </div>
-
-      <div class="filter-hint">
-        Фильтры применяются при экспорте. Telegram без фейковых @7999...
-      </div>
-    </div>
-
-    <div class="actions">
-      <button class="btn btn-action btn-secondary" id="previewBtn">👁 Превью</button>
-      <button class="btn btn-action btn-danger" id="clearBtn">🗑 Очистить</button>
+    <!-- Actions -->
+    <div class="actions-row">
+      <button class="btn-action" id="previewBtn">👁 Превью</button>
+      <button class="btn-action danger" id="clearBtn">🗑 Очистить</button>
     </div>
   </div>
 
+  <!-- Footer -->
   <div class="footer">
     <a class="footer-link" id="instructionBtn">📖 Инструкция</a>
     <a class="footer-link" id="supportBtn">💬 Поддержка</a>
