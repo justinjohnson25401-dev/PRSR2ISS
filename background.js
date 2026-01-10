@@ -750,6 +750,16 @@ function applyFilters(items, filters) {
 
 // =============== EXPORT FUNCTIONS ===============
 
+// Helper: return "-" for empty values
+function valueOrDash(val) {
+  if (val === null || val === undefined || val === '') return '-';
+  if (Array.isArray(val)) {
+    const joined = val.filter(v => v).join(', ');
+    return joined || '-';
+  }
+  return val;
+}
+
 function formatItemsForExport(items, useMobileOnly = false, selectedCity = 'Москва') {
   // Получаем координаты центра выбранного города
   const cityCenter = CITY_CENTERS[selectedCity] || CITY_CENTERS['Москва'];
@@ -782,29 +792,30 @@ function formatItemsForExport(items, useMobileOnly = false, selectedCity = 'Мо
       fullAddress = `${selectedCity}, ${fullAddress}`;
     }
 
+    // Новый порядок столбцов с прочерками вместо пустых значений
     return {
-      'Название': item.name || '',
-      'Категория': item.category || '',
-      'Специализация': item.specialization || '',
-      'Адрес': fullAddress,
-      'Телефоны': phones.join(', '),
-      'Email': (item.emails || []).join(', '),
-      'Сайт': (item.urls || []).join(', '),
-      'График работы': item.workingTimeText || '',
-      'Telegram': item.telegram || '',
-      'Telegram username': item.telegramUsername || '',
-      'VK': item.vk || '',
-      'WhatsApp': item.whatsapp || '',
+      'Название': valueOrDash(item.name),
+      'Категория': valueOrDash(item.category),
+      'Специализация': valueOrDash(item.specialization),
+      'Адрес': valueOrDash(fullAddress),
+      'Телефоны': valueOrDash(phones.join(', ')),
+      'Telegram username': valueOrDash(item.telegramUsername),
+      'Telegram': item.telegram || '',  // Оставляем пустым для кнопки
+      'VK': item.vk || '',               // Оставляем пустым для кнопки
+      'WhatsApp': item.whatsapp || '',   // Оставляем пустым для кнопки
+      'Email': valueOrDash(item.emails),
+      'Прочие соцсети': valueOrDash(item.otherSocial),
+      'Сайт': item.urls && item.urls.length > 0 ? item.urls[0] : '',  // Для кнопки
+      'График работы': valueOrDash(item.workingTimeText),
+      'Рейтинг': valueOrDash(item.rating?.ratingValue),
+      'Оценок': valueOrDash(item.rating?.ratingCount),
+      'Кол-во отзывов': valueOrDash(item.rating?.reviewCount),
       'Открыть в 2ГИС': item.link2GIS || '',
       'Открыть в Яндекс': item.linkYandex || '',
-      'Прочие соцсети': (item.otherSocial || []).join(', '),
-      'Рейтинг': item.rating?.ratingValue || '',
-      'Оценок': item.rating?.ratingCount || '',
-      'Отзывов': item.rating?.reviewCount || '',
-      'Расст. от центра (км)': distance !== null ? distance : '',
-      'Зона': zone,
-      'Широта': item.latitude || '',
-      'Долгота': item.longitude || '',
+      'Расст. от центра (км)': distance !== null ? distance : '-',
+      'Зона': valueOrDash(zone),
+      'Широта': valueOrDash(item.latitude),
+      'Долгота': valueOrDash(item.longitude),
       'Дата сбора': collectDate
     };
   });
@@ -873,19 +884,19 @@ const HEADER_STYLE = {
   }
 };
 
-// Base style for data cells - clean white with borders
+// Base style for data cells - centered with borders
 const DATA_STYLE_BASE = {
   font: { sz: 10, name: 'Calibri' },
   fill: { fgColor: { rgb: 'FFFFFF' } },
-  alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+  alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
   border: BORDER_STYLE
 };
 
-// Alternating row style (light blue tint)
+// Alternating row style (light blue tint) - centered
 const DATA_STYLE_ALT = {
   font: { sz: 10, name: 'Calibri' },
   fill: { fgColor: { rgb: 'D6DCE5' } },
-  alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+  alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
   border: BORDER_STYLE
 };
 
@@ -958,7 +969,7 @@ async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Мос
 
   // Calculate zone statistics
   const zoneStats = calculateZoneStats(formatted);
-  const statsText = `Статистика по зонам: Центр: ${zoneStats['Центр']} | Срединная зона: ${zoneStats['Срединная зона']} | Спальный район: ${zoneStats['Спальный район']} | Окраина: ${zoneStats['Окраина']}`;
+  const statsText = `Итого: ${formatted.length} компаний | Центр: ${zoneStats['Центр']} | Срединная зона: ${zoneStats['Срединная зона']} | Спальный район: ${zoneStats['Спальный район']} | Окраина: ${zoneStats['Окраина']}`;
 
   // Get headers
   const headers = Object.keys(formatted[0]);
@@ -990,8 +1001,8 @@ async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Мос
     colIndexes[h] = idx;
   });
 
-  // Numeric columns (right aligned)
-  const numericCols = ['Расст. от центра (км)', 'Рейтинг', 'Оценок', 'Отзывов', 'Широта', 'Долгота'];
+  // Numeric columns (centered)
+  const numericCols = ['Расст. от центра (км)', 'Рейтинг', 'Оценок', 'Кол-во отзывов', 'Широта', 'Долгота'];
 
   // Link columns with emoji icons (clickable)
   const linkColumns = {
@@ -1068,26 +1079,26 @@ async function exportToXLSX(items, useMobileOnly = false, selectedCity = 'Мос
   const lastRow = formatted.length + 2; // +1 for stats row, +1 for header row
   ws['!autofilter'] = { ref: `A2:${lastCol}${lastRow}` };
 
-  // Set column widths (matching new column order)
+  // Set column widths (matching new column order v2.7.0)
   ws['!cols'] = [
     { wch: 28 },  // Название
     { wch: 18 },  // Категория
     { wch: 22 },  // Специализация
     { wch: 35 },  // Адрес
     { wch: 16 },  // Телефоны
-    { wch: 22 },  // Email
-    { wch: 8 },   // Сайт (emoji)
-    { wch: 18 },  // График работы
-    { wch: 8 },   // Telegram (emoji)
     { wch: 18 },  // Telegram username
-    { wch: 8 },   // VK (emoji)
-    { wch: 8 },   // WhatsApp (emoji)
-    { wch: 6 },   // Открыть в 2ГИС (emoji)
-    { wch: 6 },   // Открыть в Яндекс (emoji)
+    { wch: 6 },   // Telegram (emoji)
+    { wch: 6 },   // VK (emoji)
+    { wch: 6 },   // WhatsApp (emoji)
+    { wch: 22 },  // Email
     { wch: 18 },  // Прочие соцсети
+    { wch: 6 },   // Сайт (emoji)
+    { wch: 18 },  // График работы
     { wch: 8 },   // Рейтинг
     { wch: 8 },   // Оценок
-    { wch: 8 },   // Отзывов
+    { wch: 10 },  // Кол-во отзывов
+    { wch: 6 },   // Открыть в 2ГИС (emoji)
+    { wch: 6 },   // Открыть в Яндекс (emoji)
     { wch: 10 },  // Расст. от центра (км)
     { wch: 14 },  // Зона
     { wch: 11 },  // Широта
