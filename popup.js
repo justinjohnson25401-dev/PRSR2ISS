@@ -64,7 +64,7 @@ class ParserPopup {
 
     // Footer links
     document.getElementById('supportBtn').addEventListener('click', () => {
-      chrome.tabs.create({ url: 'https://t.me/aza_support' });
+      chrome.tabs.create({ url: 'https://t.me/oroani' });
     });
 
     document.getElementById('instructionBtn').addEventListener('click', () => {
