@@ -360,10 +360,20 @@ async function fetchWithRetry(url, options = {}, retries = MAX_RETRIES) {
 
 // =============== CRYPTO FUNCTIONS ===============
 
-async function loadCryptoParams() {
-  if (cryptoParams.h && cryptoParams.g && cryptoParams.salt) {
+// Timestamp when crypto params were last loaded
+let cryptoParamsLoadedAt = 0;
+const CRYPTO_PARAMS_MAX_AGE = 30 * 60 * 1000; // 30 minutes max age
+
+async function loadCryptoParams(forceReload = false) {
+  // Check if params are still valid (not expired)
+  const now = Date.now();
+  const paramsExpired = (now - cryptoParamsLoadedAt) > CRYPTO_PARAMS_MAX_AGE;
+
+  if (!forceReload && !paramsExpired && cryptoParams.h && cryptoParams.g && cryptoParams.salt) {
     return cryptoParams;
   }
+
+  console.log('[Background] Loading crypto params...', forceReload ? '(forced)' : paramsExpired ? '(expired)' : '(new)');
 
   try {
     const res = await fetch('https://2gis.ru/');
@@ -393,6 +403,7 @@ async function loadCryptoParams() {
       cryptoParams.salt = classMatch[3];
     }
 
+    cryptoParamsLoadedAt = Date.now();
     console.log('[Background] Crypto params loaded:', cryptoParams);
     return cryptoParams;
 
@@ -1218,13 +1229,33 @@ chrome.webRequest.onCompleted.addListener(
 
         uniqueItemKeys.add(key);
 
-        const detailUrl = buildByIdUrl(details.url, item.id);
+        // Try to build detail URL, with retry on failure
+        let detailUrl = buildByIdUrl(details.url, item.id);
+
+        // If failed, force reload crypto params and try once more
         if (!detailUrl) {
-          console.error('[Background] Could not build detail URL for:', item.id);
-          continue;
+          console.log('[Background] buildByIdUrl failed, reloading crypto params...');
+          await loadCryptoParams(true); // Force reload
+          detailUrl = buildByIdUrl(details.url, item.id);
+
+          if (!detailUrl) {
+            console.error('[Background] Could not build detail URL after retry for:', item.id);
+            continue;
+          }
         }
 
-        const detail = await fetchWithRetry(detailUrl);
+        let detail = await fetchWithRetry(detailUrl);
+
+        // If detail fetch failed, try reloading crypto params and retry
+        if (!detail?.result?.items?.length) {
+          console.log('[Background] Detail fetch failed, reloading crypto params...');
+          await loadCryptoParams(true); // Force reload
+
+          const newDetailUrl = buildByIdUrl(details.url, item.id);
+          if (newDetailUrl) {
+            detail = await fetchWithRetry(newDetailUrl);
+          }
+        }
 
         if (detail?.result?.items?.length) {
           const extracted = extractItemData(detail.result.items[0]);
@@ -1232,8 +1263,7 @@ chrome.webRequest.onCompleted.addListener(
           await saveToStorage(capturedUrls, uniqueItems, uniqueItemKeys);
           console.log('[Background] Added:', extracted.name);
         } else {
-          cryptoParams = { h: null, g: null, salt: null };
-          console.error('[Background] Failed to get details for:', item.id);
+          console.error('[Background] Failed to get details after retry for:', item.id);
         }
       }
 

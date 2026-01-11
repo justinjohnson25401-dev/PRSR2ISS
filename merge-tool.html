@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2GIS Parser - Объединение файлов</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg-dark: #1a1a2e;
+      --bg-card: #16213e;
+      --bg-input: #0f3460;
+      --accent: #00d9ff;
+      --accent-green: #00e676;
+      --accent-orange: #ff9100;
+      --accent-red: #ff5252;
+      --text-primary: #e8e8e8;
+      --text-secondary: #a0a0a0;
+      --border: #2a3f5f;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: var(--accent);
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+
+    .section {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: var(--accent);
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--bg-input);
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(0, 217, 255, 0.1);
+    }
+
+    .drop-zone input {
+      display: none;
+    }
+
+    .drop-zone-icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    .drop-zone-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .file-list {
+      margin-top: 15px;
+    }
+
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 15px;
+      background: var(--bg-input);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    .file-item .name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-item .count {
+      color: var(--accent-green);
+      margin: 0 15px;
+      font-weight: 600;
+    }
+
+    .file-item .remove {
+      color: var(--accent-red);
+      cursor: pointer;
+      padding: 5px;
+    }
+
+    .file-item .remove:hover {
+      color: #ff7b7b;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+    }
+
+    .stat-box {
+      background: var(--bg-input);
+      border-radius: 10px;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .stat-box .value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent-green);
+    }
+
+    .stat-box .label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin-top: 5px;
+    }
+
+    .stat-box.highlight .value {
+      color: var(--accent-orange);
+    }
+
+    .settings-row {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .setting-item {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .setting-item label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .setting-item input,
+    .setting-item select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 13px;
+    }
+
+    .setting-item input:focus,
+    .setting-item select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .btn {
+      padding: 14px 30px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-green) 0%, #00b859 100%);
+      color: var(--bg-dark);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 230, 118, 0.3);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: var(--bg-input);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent);
+    }
+
+    .actions {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .log {
+      background: var(--bg-dark);
+      border-radius: 8px;
+      padding: 15px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: none;
+    }
+
+    .log.active {
+      display: block;
+    }
+
+    .log-entry {
+      padding: 3px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .log-entry.success { color: var(--accent-green); }
+    .log-entry.error { color: var(--accent-red); }
+    .log-entry.warning { color: var(--accent-orange); }
+
+    .info-box {
+      background: rgba(0, 217, 255, 0.1);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 12px 15px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 15px;
+    }
+
+    .info-box strong {
+      color: var(--accent);
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      margin-top: 15px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .progress-bar.active {
+      display: block;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-green) 100%);
+      width: 0%;
+      transition: width 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 Объединение Excel файлов</h1>
+    <p class="subtitle">Загрузите несколько файлов для объединения с удалением дубликатов</p>
+
+    <!-- Upload Section -->
+    <div class="section">
+      <div class="section-title">📁 Загрузка файлов</div>
+
+      <div class="info-box">
+        <strong>Как работает:</strong> Загрузите несколько XLSX файлов, экспортированных из 2GIS Parser.
+        Инструмент объединит их и удалит дубликаты по телефону ИЛИ Telegram username.
+      </div>
+
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" multiple accept=".xlsx,.xls">
+        <div class="drop-zone-icon">📂</div>
+        <div class="drop-zone-text">
+          Перетащите файлы сюда или кликните для выбора<br>
+          <small>Поддерживаются .xlsx файлы</small>
+        </div>
+      </div>
+
+      <div class="file-list" id="fileList"></div>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="section">
+      <div class="section-title">📈 Статистика</div>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="value" id="statFiles">0</div>
+          <div class="label">Файлов</div>
+        </div>
+        <div class="stat-box">
+          <div class="value" id="statTotal">0</div>
+          <div class="label">Всего строк</div>
+        </div>
+        <div class="stat-box highlight">
+          <div class="value" id="statDuplicates">0</div>
+          <div class="label">Дубликатов</div>
+        </div>
+        <div class="stat-box">
+          <div class="value" id="statUnique">0</div>
+          <div class="label">Уникальных</div>
+        </div>
+      </div>
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <!-- Settings Section -->
+    <div class="section">
+      <div class="section-title">⚙️ Настройки экспорта</div>
+      <div class="settings-row">
+        <div class="setting-item">
+          <label>Категория (для имени файла)</label>
+          <input type="text" id="category" placeholder="Салоны красоты">
+        </div>
+        <div class="setting-item">
+          <label>Город</label>
+          <input type="text" id="city" placeholder="Москва" value="Москва">
+        </div>
+        <div class="setting-item">
+          <label>Записей в файле (пакет)</label>
+          <input type="number" id="packSize" min="100" max="50000" value="1000">
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button class="btn btn-secondary" id="clearBtn">🗑️ Очистить</button>
+      <button class="btn btn-primary" id="mergeBtn" disabled>📥 Объединить и скачать</button>
+    </div>
+
+    <!-- Log Section -->
+    <div class="section">
+      <div class="section-title">📋 Лог операций</div>
+      <div class="log active" id="log">
+        <div class="log-entry">Готов к работе. Загрузите файлы для начала.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let loadedFiles = [];
+    let allRows = [];
+    let uniqueRows = [];
+
+    // DOM Elements
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+    const mergeBtn = document.getElementById('mergeBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const logEl = document.getElementById('log');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+
+    // Log function
+    function log(message, type = '') {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry ' + type;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logEl.insertBefore(entry, logEl.firstChild);
+    }
+
+    // Update stats
+    function updateStats() {
+      document.getElementById('statFiles').textContent = loadedFiles.length;
+      document.getElementById('statTotal').textContent = allRows.length;
+      document.getElementById('statDuplicates').textContent = allRows.length - uniqueRows.length;
+      document.getElementById('statUnique').textContent = uniqueRows.length;
+
+      mergeBtn.disabled = uniqueRows.length === 0;
+    }
+
+    // Render file list
+    function renderFileList() {
+      fileList.innerHTML = loadedFiles.map((file, idx) => `
+        <div class="file-item">
+          <span class="name">📄 ${file.name}</span>
+          <span class="count">${file.rowCount} записей</span>
+          <span class="remove" onclick="removeFile(${idx})">✕</span>
+        </div>
+      `).join('');
+    }
+
+    // Remove file
+    function removeFile(idx) {
+      const fileName = loadedFiles[idx].name;
+      loadedFiles.splice(idx, 1);
+      processAllFiles();
+      renderFileList();
+      log(`Удален файл: ${fileName}`, 'warning');
+    }
+
+    // Normalize phone for comparison
+    function normalizePhone(phone) {
+      if (!phone) return '';
+      let digits = String(phone).replace(/\D/g, '');
+      if (digits.length === 11 && digits.startsWith('8')) {
+        digits = '7' + digits.slice(1);
+      }
+      if (digits.length === 10) {
+        digits = '7' + digits;
+      }
+      if (digits.length === 11 && digits.startsWith('7')) {
+        return '+' + digits;
+      }
+      return phone;
+    }
+
+    // Extract phones from row (handles multiple columns)
+    function extractPhones(row) {
+      const phones = [];
+      const phoneCol = row['Телефоны'] || row['Телефон'] || '';
+
+      if (phoneCol && phoneCol !== '-') {
+        // Split by comma and normalize each
+        phoneCol.split(',').forEach(p => {
+          const normalized = normalizePhone(p.trim());
+          if (normalized && normalized !== '-') phones.push(normalized);
+        });
+      }
+
+      return phones;
+    }
+
+    // Extract telegram username from row
+    function extractTelegram(row) {
+      const tg = row['Telegram username'] || row['Telegram'] || '';
+      if (!tg || tg === '-') return '';
+
+      // Extract username from URL or @username format
+      let username = tg;
+      const match = tg.match(/t\.me\/([^\/\?]+)/i);
+      if (match) {
+        username = '@' + match[1];
+      }
+
+      // Normalize
+      username = username.toLowerCase().trim();
+      if (!username.startsWith('@')) username = '@' + username;
+
+      // Validate - skip phone-like usernames
+      const clean = username.replace(/^@/, '');
+      if (/^\d+$/.test(clean)) return ''; // All digits = phone
+      if (/^[78]\d{9,10}$/.test(clean)) return ''; // Phone format
+
+      return username;
+    }
+
+    // Process all loaded files - deduplicate
+    function processAllFiles() {
+      allRows = [];
+
+      // Collect all rows from all files
+      for (const file of loadedFiles) {
+        allRows = allRows.concat(file.rows);
+      }
+
+      // Deduplicate by phone OR telegram
+      const seenPhones = new Set();
+      const seenTelegrams = new Set();
+      uniqueRows = [];
+
+      for (const row of allRows) {
+        let isDuplicate = false;
+
+        // Check phone duplicates
+        const phones = extractPhones(row);
+        for (const phone of phones) {
+          if (phone && seenPhones.has(phone)) {
+            isDuplicate = true;
+            break;
+          }
+        }
+
+        // Check telegram duplicate
+        if (!isDuplicate) {
+          const telegram = extractTelegram(row);
+          if (telegram && seenTelegrams.has(telegram)) {
+            isDuplicate = true;
+          }
+        }
+
+        if (!isDuplicate) {
+          // Add to seen sets
+          for (const phone of phones) {
+            if (phone) seenPhones.add(phone);
+          }
+          const telegram = extractTelegram(row);
+          if (telegram) seenTelegrams.add(telegram);
+
+          uniqueRows.push(row);
+        }
+      }
+
+      updateStats();
+      log(`Обработано: ${allRows.length} записей → ${uniqueRows.length} уникальных (${allRows.length - uniqueRows.length} дубликатов)`, 'success');
+    }
+
+    // Read Excel file
+    async function readExcelFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+
+            // Get first sheet
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+
+            // Convert to JSON, skipping first row if it's stats
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+            // Filter out stats row (first row might be "Итого: X компаний...")
+            const rows = jsonData.filter(row => {
+              const firstValue = Object.values(row)[0];
+              return !String(firstValue).startsWith('Итого:');
+            });
+
+            resolve({
+              name: file.name,
+              rows: rows,
+              rowCount: rows.length
+            });
+          } catch (err) {
+            reject(err);
+          }
+        };
+
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    // Handle file selection
+    async function handleFiles(files) {
+      progressBar.classList.add('active');
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        progressFill.style.width = ((i + 1) / files.length * 100) + '%';
+
+        if (!file.name.match(/\.xlsx?$/i)) {
+          log(`Пропущен файл (не Excel): ${file.name}`, 'warning');
+          continue;
+        }
+
+        // Check if already loaded
+        if (loadedFiles.some(f => f.name === file.name)) {
+          log(`Файл уже загружен: ${file.name}`, 'warning');
+          continue;
+        }
+
+        try {
+          log(`Загрузка файла: ${file.name}...`);
+          const fileData = await readExcelFile(file);
+          loadedFiles.push(fileData);
+          log(`Загружен: ${file.name} (${fileData.rowCount} записей)`, 'success');
+        } catch (err) {
+          log(`Ошибка загрузки ${file.name}: ${err.message}`, 'error');
+        }
+      }
+
+      processAllFiles();
+      renderFileList();
+      progressBar.classList.remove('active');
+    }
+
+    // Drop zone events
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      handleFiles(e.target.files);
+      e.target.value = ''; // Reset for re-upload
+    });
+
+    // Clear button
+    clearBtn.addEventListener('click', () => {
+      loadedFiles = [];
+      allRows = [];
+      uniqueRows = [];
+      updateStats();
+      renderFileList();
+      log('Все файлы удалены', 'warning');
+    });
+
+    // Merge and download
+    mergeBtn.addEventListener('click', () => {
+      if (uniqueRows.length === 0) return;
+
+      const category = document.getElementById('category').value.trim() || 'export';
+      const city = document.getElementById('city').value.trim() || 'city';
+      const packSize = parseInt(document.getElementById('packSize').value) || 1000;
+      const dateStr = new Date().toISOString().split('T')[0];
+
+      // Split into packs
+      const packs = [];
+      for (let i = 0; i < uniqueRows.length; i += packSize) {
+        packs.push(uniqueRows.slice(i, i + packSize));
+      }
+
+      log(`Создание ${packs.length} файл(ов)...`);
+
+      // Download each pack
+      packs.forEach((pack, idx) => {
+        const ws = XLSX.utils.json_to_sheet(pack);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Компании');
+
+        // Generate filename
+        let filename;
+        if (packs.length > 1) {
+          filename = `${category}_${city}_Пакет${idx + 1}_${dateStr}_merged.xlsx`;
+        } else {
+          filename = `${category}_${city}_${dateStr}_merged.xlsx`;
+        }
+
+        XLSX.writeFile(wb, filename);
+        log(`Создан файл: ${filename} (${pack.length} записей)`, 'success');
+      });
+
+      log(`Готово! Экспортировано ${uniqueRows.length} уникальных записей в ${packs.length} файл(ов)`, 'success');
+    });
+
+    // Initial stats
+    updateStats();
+  </script>
+</body>
+</html>
