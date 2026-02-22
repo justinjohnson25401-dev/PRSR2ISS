@@ -3,20 +3,840 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="title">Gis Maps Parser</title>
-  <script src="popup.js" defer></script>
+  <title>2GIS Parser Pro</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 10px; width: 220px; }
-    button { padding: 10px; margin: 5px; cursor: pointer; width: 90%; }
-    #status { font-size: 12px; }
+    :root {
+      --bg-dark: #1a1a2e;
+      --bg-card: #16213e;
+      --bg-input: #0f3460;
+      --bg-hover: #1f4068;
+      --accent: #00d9ff;
+      --accent-green: #00e676;
+      --accent-orange: #ff9100;
+      --accent-red: #ff5252;
+      --text-primary: #e8e8e8;
+      --text-secondary: #a0a0a0;
+      --text-muted: #6b6b6b;
+      --border: #2a3f5f;
+      --shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      width: 500px;
+      height: 500px;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      overflow-y: auto;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-dark);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent);
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-input) 100%);
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-left h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 2px;
+    }
+
+    .header-left .version {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .header-right {
+      text-align: right;
+    }
+
+    .total-count {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent-green);
+      line-height: 1;
+    }
+
+    .total-label {
+      font-size: 10px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Main content */
+    .main {
+      padding: 16px 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .stat-item {
+      background: var(--bg-card);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+    }
+
+    .stat-item:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .stat-item .icon {
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+
+    .stat-item .value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .stat-item .label {
+      font-size: 9px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .stat-item.highlight {
+      background: linear-gradient(135deg, rgba(255, 145, 0, 0.2) 0%, rgba(255, 82, 82, 0.1) 100%);
+      border-color: var(--accent-orange);
+    }
+
+    .stat-item.highlight .value {
+      color: var(--accent-orange);
+    }
+
+    /* Section */
+    .section {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 14px;
+      border: 1px solid var(--border);
+    }
+
+    .section-header {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Auto-collect Button */
+    .btn-collect {
+      width: 100%;
+      padding: 14px 20px;
+      background: linear-gradient(135deg, var(--accent) 0%, #0099cc 100%);
+      color: var(--bg-dark);
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn-collect:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 217, 255, 0.3);
+    }
+
+    .btn-collect.collecting {
+      background: linear-gradient(135deg, var(--accent-orange) 0%, #cc7000 100%);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .btn-collect .icon {
+      font-size: 18px;
+    }
+
+    .collect-status {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 8px;
+      min-height: 16px;
+    }
+
+    .collect-status.error { color: var(--accent-red); }
+    .collect-status.success { color: var(--accent-green); }
+
+    /* Interval selector */
+    .interval-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .interval-row label {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .interval-row select {
+      padding: 6px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    /* Status Panel */
+    .status-panel {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      background: var(--bg-input);
+      border-radius: 8px;
+      font-size: 11px;
+    }
+
+    .status-panel.active {
+      display: block;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .status-row:last-child {
+      border-bottom: none;
+    }
+
+    .status-row strong {
+      color: var(--accent);
+    }
+
+    .progress-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-green) 100%);
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .progress-text {
+      text-align: center;
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Export Section */
+    .export-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .input-group label {
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .input-group input,
+    .input-group select {
+      padding: 10px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 12px;
+    }
+
+    .input-group input:focus,
+    .input-group select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .btn-export {
+      padding: 12px 24px;
+      background: linear-gradient(135deg, var(--accent-green) 0%, #00b859 100%);
+      color: var(--bg-dark);
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn-export:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 230, 118, 0.3);
+    }
+
+    /* Filters */
+    .filters-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .filter-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: var(--bg-input);
+      border-radius: 8px;
+      font-size: 11px;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .filter-item:hover {
+      border-color: var(--border);
+    }
+
+    .filter-item label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .filter-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .filter-item input[type="number"] {
+      width: 50px;
+      padding: 4px 8px;
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .filter-item.target {
+      background: linear-gradient(135deg, rgba(255, 145, 0, 0.2) 0%, rgba(255, 82, 82, 0.1) 100%);
+      border-color: var(--accent-orange);
+      grid-column: span 2;
+    }
+
+    .filter-item.target label {
+      color: var(--accent-orange);
+      font-weight: 600;
+    }
+
+    /* Actions */
+    .actions-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn-action {
+      padding: 10px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: var(--bg-input);
+      color: var(--text-primary);
+    }
+
+    .btn-action:hover {
+      border-color: var(--accent);
+      background: var(--bg-hover);
+    }
+
+    .btn-action.danger {
+      border-color: rgba(255, 82, 82, 0.3);
+    }
+
+    .btn-action.danger:hover {
+      border-color: var(--accent-red);
+      background: rgba(255, 82, 82, 0.1);
+      color: var(--accent-red);
+    }
+
+    /* Status message */
+    .status-message {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 11px;
+      text-align: center;
+      display: none;
+    }
+
+    .status-message.success {
+      display: block;
+      background: rgba(0, 230, 118, 0.1);
+      color: var(--accent-green);
+      border: 1px solid rgba(0, 230, 118, 0.3);
+    }
+
+    .status-message.error {
+      display: block;
+      background: rgba(255, 82, 82, 0.1);
+      color: var(--accent-red);
+      border: 1px solid rgba(255, 82, 82, 0.3);
+    }
+
+    .status-message.warning {
+      display: block;
+      background: rgba(255, 145, 0, 0.1);
+      color: var(--accent-orange);
+      border: 1px solid rgba(255, 145, 0, 0.3);
+    }
+
+    /* Footer */
+    .footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .footer-link {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .footer-link:hover {
+      color: var(--accent);
+    }
+
+    /* Special Order Toggle */
+    .special-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: var(--bg-input);
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+
+    .special-toggle label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .special-fields {
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .special-fields.active {
+      display: grid;
+    }
+
+    /* History toggle */
+    .history-toggle {
+      cursor: pointer;
+      color: var(--accent);
+      text-align: center;
+      font-size: 10px;
+      padding: 6px;
+      margin-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .history-toggle:hover {
+      color: var(--accent-green);
+    }
+
+    .page-history {
+      display: none;
+      max-height: 80px;
+      overflow-y: auto;
+      margin-top: 6px;
+      font-size: 10px;
+    }
+
+    .page-history.active {
+      display: block;
+    }
+
+    .history-item {
+      padding: 3px 0;
+      border-bottom: 1px dotted var(--border);
+      color: var(--text-secondary);
+    }
+
+    .history-item .page {
+      color: var(--accent);
+    }
   </style>
 </head>
 <body>
-  <h3 data-i18n="title">Gis Maps Parser</h3>
-  <button id="downloadBtn" data-i18n="downloadBtn">🗂 Скачать таблицу</button>
-  <button id="clearBtn" data-i18n="clearBtn">↩️ Сбросить</button>
-  <button id="supportBtn" data-i18n="supportBtn">💌 Поддержка 24/7</button>
-  <button id="instructionBtn" data-i18n="instructionBtn">📗 Инструкция</button>
-  <p id="status" style="color: red;"></p>
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1>2GIS Parser Pro</h1>
+      <div class="version">v2.7.0</div>
+    </div>
+    <div class="header-right">
+      <div class="total-count" id="totalCount">0</div>
+      <div class="total-label">Компаний</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Status Message -->
+    <div id="status" class="status-message"></div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="icon">🌐</div>
+        <div class="value" id="statSites">0/0</div>
+        <div class="label">Свой сайт</div>
+      </div>
+      <div class="stat-item">
+        <div class="icon">📱</div>
+        <div class="value" id="statMobile">0/0</div>
+        <div class="label">Мобильные</div>
+      </div>
+      <div class="stat-item">
+        <div class="icon">💬</div>
+        <div class="value" id="statTelegram">0/0</div>
+        <div class="label">Telegram</div>
+      </div>
+      <div class="stat-item">
+        <div class="icon">📘</div>
+        <div class="value" id="statVK">0/0</div>
+        <div class="label">VK</div>
+      </div>
+      <div class="stat-item">
+        <div class="icon">📲</div>
+        <div class="value" id="statWhatsApp">0/0</div>
+        <div class="label">WhatsApp</div>
+      </div>
+      <div class="stat-item highlight">
+        <div class="icon">🎯</div>
+        <div class="value" id="statTarget">0/0</div>
+        <div class="label">Целевые</div>
+      </div>
+    </div>
+
+    <!-- Auto-Collect Section -->
+    <div class="section">
+      <div class="section-header">🔄 Сбор данных</div>
+      <button class="btn-collect" id="autoCollectBtn">
+        <span class="icon">🚀</span>
+        <span class="text">Собрать все страницы</span>
+      </button>
+      <div class="collect-status" id="autoCollectStatus"></div>
+
+      <div class="interval-row">
+        <label>Интервал:</label>
+        <select id="intervalSelect">
+          <option value="15">15 сек</option>
+          <option value="20" selected>20 сек</option>
+          <option value="25">25 сек</option>
+          <option value="30">30 сек</option>
+        </select>
+      </div>
+
+      <!-- Status Panel (shown during collection) -->
+      <div id="collectStatusPanel" class="status-panel">
+        <div class="status-row">
+          <span>📄 Текущая страница:</span>
+          <strong id="currentPageNum">0</strong>
+        </div>
+        <div class="status-row">
+          <span>✅ Последняя успешная:</span>
+          <strong id="lastSuccessPage">0</strong>
+        </div>
+        <div class="status-row">
+          <span>🏢 Всего компаний:</span>
+          <strong id="totalCompaniesCollected">0</strong>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-bar-fill" id="scrollProgress"></div>
+        </div>
+        <div class="progress-text" id="scrollStatusText">Ожидание...</div>
+
+        <div class="history-toggle" id="historyToggle">📜 Показать историю ▼</div>
+        <div class="page-history" id="pageHistory"></div>
+      </div>
+    </div>
+
+    <!-- Export Section -->
+    <div class="section">
+      <div class="section-header">📊 Экспорт</div>
+      <div class="export-row">
+        <div class="input-group">
+          <label>Категория:</label>
+          <input type="text" id="categoryInput" placeholder="Салоны красоты">
+        </div>
+        <button class="btn-export" id="downloadXlsx">
+          <span>📥</span> XLSX
+        </button>
+      </div>
+
+      <div class="special-toggle">
+        <label><span>⚙️</span> Спецзаказ (ручные настройки)</label>
+        <input type="checkbox" id="specialOrderCheck">
+      </div>
+
+      <div class="special-fields" id="specialOrderFields">
+        <div class="input-group">
+          <label>Город (вручную):</label>
+          <input type="text" id="customCity" placeholder="Москва">
+        </div>
+        <div class="input-group">
+          <label>Записей в файле:</label>
+          <input type="number" id="customPackSize" min="100" max="50000" value="1000">
+        </div>
+      </div>
+
+      <div class="input-group" style="margin-top: 10px;">
+        <label>Город для расстояния:</label>
+        <select id="citySelect">
+          <option value="Москва">Москва</option>
+          <option value="Санкт-Петербург">Санкт-Петербург</option>
+          <option value="Новосибирск">Новосибирск</option>
+          <option value="Екатеринбург">Екатеринбург</option>
+          <option value="Казань">Казань</option>
+          <option value="Нижний Новгород">Нижний Новгород</option>
+          <option value="Челябинск">Челябинск</option>
+          <option value="Самара">Самара</option>
+          <option value="Омск">Омск</option>
+          <option value="Ростов-на-Дону">Ростов-на-Дону</option>
+          <option value="Уфа">Уфа</option>
+          <option value="Красноярск">Красноярск</option>
+          <option value="Воронеж">Воронеж</option>
+          <option value="Пермь">Пермь</option>
+          <option value="Волгоград">Волгоград</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Filters Section - with explanations -->
+    <div class="section">
+      <div class="section-header">🔍 Фильтры для экспорта</div>
+      <div class="filter-hint" style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px; padding: 8px; background: var(--bg-input); border-radius: 6px;">
+        Фильтры применяются при скачивании файла. Собираются ВСЕ компании, но в файл попадут только те, что соответствуют выбранным фильтрам.
+      </div>
+
+      <!-- Target filter for sales -->
+      <div class="filter-section" style="margin-bottom: 12px;">
+        <div class="filter-section-title" style="font-size: 10px; color: var(--accent-orange); font-weight: 600; margin-bottom: 6px;">
+          🎯 ЦЕЛЕВОЙ ФИЛЬТР (для предложения услуг разработки сайтов)
+        </div>
+        <div class="filter-item target" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+          <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+            <label for="filterNoSiteWithSocial" style="font-weight: 600;">
+              Без своего сайта + есть соцсеть
+            </label>
+            <input type="checkbox" id="filterNoSiteWithSocial">
+          </div>
+          <div style="font-size: 9px; color: var(--text-muted); line-height: 1.3;">
+            Компании без собственного сайта (yclients/youtube не считаются), но с TG/VK/WA для связи. Им можно предложить создание сайта.
+          </div>
+        </div>
+      </div>
+
+      <!-- Social networks -->
+      <div class="filter-section" style="margin-bottom: 12px;">
+        <div class="filter-section-title" style="font-size: 10px; color: var(--text-secondary); font-weight: 600; margin-bottom: 6px;">
+          💬 СОЦСЕТИ
+        </div>
+        <div class="filters-grid">
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterAnySocial">С любой соцсетью</label>
+              <input type="checkbox" id="filterAnySocial">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">Есть хотя бы одна: TG, VK или WA</div>
+          </div>
+
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterTelegram">С Telegram</label>
+              <input type="checkbox" id="filterTelegram">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">Реальный TG (не @79995466000)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contacts -->
+      <div class="filter-section" style="margin-bottom: 12px;">
+        <div class="filter-section-title" style="font-size: 10px; color: var(--text-secondary); font-weight: 600; margin-bottom: 6px;">
+          📞 КОНТАКТЫ
+        </div>
+        <div class="filters-grid">
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterPhone">С телефоном</label>
+              <input type="checkbox" id="filterPhone">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">Любой номер телефона</div>
+          </div>
+
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterMobile">Только мобильные</label>
+              <input type="checkbox" id="filterMobile">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">Формат +79... (не городские)</div>
+          </div>
+
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterEmail">С email</label>
+              <input type="checkbox" id="filterEmail">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">Есть электронная почта</div>
+          </div>
+
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterSite">С сайтом</label>
+              <input type="checkbox" id="filterSite">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">СВОЙ сайт (не yclients/youtube)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quality filters -->
+      <div class="filter-section">
+        <div class="filter-section-title" style="font-size: 10px; color: var(--text-secondary); font-weight: 600; margin-bottom: 6px;">
+          ⭐ КАЧЕСТВО
+        </div>
+        <div class="filters-grid">
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterRating">Мин. рейтинг</label>
+              <input type="number" id="filterRating" min="0" max="5" step="0.1" value="0">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">От 0 до 5 (0 = все)</div>
+          </div>
+
+          <div class="filter-item" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <label for="filterMaxReviews">Макс. отзывов</label>
+              <input type="number" id="filterMaxReviews" min="0" max="10000" value="0" placeholder="0">
+            </div>
+            <div style="font-size: 9px; color: var(--text-muted);">0 = без лимита. &lt;100 = мелкий бизнес</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-row">
+      <button class="btn-action" id="previewBtn">👁 Превью</button>
+      <button class="btn-action danger" id="clearBtn">🗑 Очистить</button>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <a class="footer-link" id="instructionBtn">📖 Инструкция</a>
+    <a class="footer-link" id="supportBtn">💬 Поддержка</a>
+  </div>
+
+  <script src="popup.js"></script>
 </body>
 </html>

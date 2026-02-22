@@ -1,0 +1,38 @@
+{
+   "action": {
+      "default_icon": {
+         "16": "common/icon_16.png",
+         "24": "common/icon_24.png",
+         "32": "common/icon_32.png"
+      },
+      "default_popup": "popup/index.html",
+      "default_title": "CSS Selector Capture Pro"
+   },
+   "author": "Charlton Cheng",
+   "content_scripts": [ {
+      "all_frames": false,
+      "js": [ "common/app.min.js", "content-script/main.min.js" ],
+      "matches": [ "*://*/*" ],
+      "run_at": "document_end"
+   } ],
+   "description": "Generate a copiable CSS Selector with a mouseover without Devtool",
+   "host_permissions": [ "\u003Call_urls>" ],
+   "icons": {
+      "128": "common/icon_128.png",
+      "16": "common/icon_16.png",
+      "32": "common/icon_32.png",
+      "48": "common/icon_48.png"
+   },
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjJpuWsKudj6Xd7pxDJOEnFu4hFNtV1Vu7lb6X+Hx9sLTBKcGGxRc4S0BXdV+Mazrz7qcWyWsb6BLP4H3r3nPEU2YDMKbAnYF7P0CHXQR41lI4z+QGiB9S00IJj/5pnKuFj0+MDkQoVTNoGvt1yue16owRt8JU9yVCVRBzdy5UlOKRjtG8ihbT8m4s3e6psfJg7zs3kPtDw85TBG79ixng2hwKk0rgrdg8RbmQLf07FHnelTP+ri1LLIhMzdQs3dMA8y7LXTIvqTphgiJ+8uSkl97EKIEi2ygDzkgYK+JrIRkoMD6iYqNk8Ryx8VqtmJ6mfk4VUK0JqQ7m+a6LYL1pwIDAQAB",
+   "manifest_version": 3,
+   "minimum_chrome_version": "88",
+   "name": "CSS Selector Capture Pro",
+   "offline_enabled": true,
+   "permissions": [ "storage", "clipboardWrite" ],
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "2.4.1",
+   "web_accessible_resources": [ {
+      "matches": [ "\u003Call_urls>" ],
+      "resources": [ "common/app.min.css", "common/shl-app-icomoon.woff" ]
+   } ]
+}

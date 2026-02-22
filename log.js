@@ -1,7 +1,11 @@
+// 2GIS Parser Pro - Bridge Script v2.0
+// Мост между MAIN world и расширением
+
 window.dispatchEvent(new CustomEvent('contentScriptReady'));
-// Ловим события из MAIN world
+
+// Пересылка сообщений из MAIN world в background
 window.addEventListener('FROM_MAIN_WORLD', (e) => {
-    console.log('Получено из MAIN:', e.detail);
-    // Пересылаем в background
+  if (e.detail) {
     chrome.runtime.sendMessage(e.detail);
+  }
 });
